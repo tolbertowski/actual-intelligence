@@ -1,0 +1,177 @@
+/* Layout and view styles. Tokens come from global.css. */
+
+.app-shell {
+  min-height: 100%;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 14px 20px;
+  background: color-mix(in srgb, var(--canvas) 85%, transparent);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 0.5px solid var(--hairline);
+}
+
+.app-mark {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.app-mark:hover {
+  text-decoration: none;
+  color: var(--ink);
+}
+
+/* ---- Deck list --------------------------------------------------------- */
+
+.deck-intro {
+  margin-bottom: 28px;
+}
+.deck-intro h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.deck-intro p {
+  max-width: 56ch;
+  margin: 0;
+}
+
+.deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 0.5px solid var(--hairline);
+}
+
+.deck-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 16px 8px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 0.5px solid var(--hairline);
+  border-radius: 0;
+  color: inherit;
+  transition: background 120ms ease;
+}
+.deck-row:hover {
+  background: var(--surface-sunken);
+}
+
+.deck-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.deck-row-title {
+  font-weight: 550;
+}
+.deck-row-blurb {
+  font-size: 14px;
+}
+.deck-row-meta {
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- Deck view --------------------------------------------------------- */
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 8px;
+  margin: 0 0 16px -8px;
+  color: var(--ink-soft);
+}
+
+.deck-header {
+  margin-bottom: 32px;
+}
+.deck-header h1 {
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+.deck-header p {
+  margin: 0 0 10px;
+}
+.notes-link {
+  font-size: 14px;
+}
+
+.deck-section {
+  margin-bottom: 40px;
+}
+.deck-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.deck-section-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.deck-section-empty {
+  padding: 20px 0;
+  max-width: 52ch;
+}
+.deck-section-empty p {
+  margin: 0 0 8px;
+}
+.small {
+  font-size: 13px;
+}
+
+.card-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.card-preview {
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--hairline);
+}
+.card-preview-kind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  text-transform: lowercase;
+  margin-bottom: 6px;
+}
+.card-preview-body {
+  font-size: 17px;
+  line-height: 1.5;
+}
+.card-preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.error {
+  color: var(--bad);
+}
+
+@media (max-width: 520px) {
+  .deck-intro h1 {
+    font-size: 24px;
+  }
+}

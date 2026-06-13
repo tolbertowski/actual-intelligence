@@ -1,0 +1,23 @@
+Content license — course material and quiz decks
+=================================================
+
+The educational content in this repository — the quiz questions in
+public/decks/, and any material transcribed from or derived from the COMP90054
+"Reinforcement Learning" course notes — is licensed under
+
+  Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+  https://creativecommons.org/licenses/by-nc/4.0/
+
+This is because the COMP90054 notes derive from David Silver's reinforcement
+learning slides, which are released under CC BY-NC 4.0. We inherit that
+license and its terms:
+
+  - Attribution — you must give appropriate credit (see ATTRIBUTION.md).
+  - NonCommercial — you may not use the material for commercial purposes.
+
+This content license applies ONLY to the educational content. The application
+source code is licensed under the MIT License (see LICENSE).
+
+Flashcards authored by users of the app are their own work and are not covered
+by this license. They never leave the user's device unless the user chooses to
+export and share them.

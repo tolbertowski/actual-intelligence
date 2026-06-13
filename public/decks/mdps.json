@@ -1,0 +1,118 @@
+{
+  "deck": "mdps",
+  "version": 1,
+  "cards": [
+    {
+      "id": "mdp-tuple",
+      "kind": "mcq",
+      "tags": ["definitions"],
+      "question": "A Markov decision process is usually written as the tuple $\\langle S, A, P, R, \\gamma \\rangle$. What does $P$ denote?",
+      "options": [
+        "The set of admissible policies",
+        "The state-transition probability function $P(s' \\mid s, a)$",
+        "The reward received on entering a state",
+        "The stationary distribution over states"
+      ],
+      "answer": 1,
+      "explanation": "$P$ is the transition model: $P(s' \\mid s, a)$ gives the probability of landing in state $s'$ after taking action $a$ in state $s$. $R$ is the reward function and $\\gamma$ the discount factor; a policy is a separate object we solve *for*, not part of the MDP definition."
+    },
+    {
+      "id": "markov-property",
+      "kind": "mcq",
+      "tags": ["definitions", "markov"],
+      "question": "What does the Markov property state about a state $S_t$?",
+      "options": [
+        "The reward depends only on the action, not the state",
+        "$\\mathbb{P}[S_{t+1} \\mid S_t] = \\mathbb{P}[S_{t+1} \\mid S_1, \\dots, S_t]$ — the future is independent of the past given the present",
+        "Every state is reachable from every other state",
+        "The discount factor must satisfy $\\gamma = 1$"
+      ],
+      "answer": 1,
+      "explanation": "The Markov property says the current state captures all relevant history: conditioning on the full history gives the same next-state distribution as conditioning on the current state alone. This is what lets value functions depend on state rather than trajectory."
+    },
+    {
+      "id": "discount-factor",
+      "kind": "mcq",
+      "tags": ["return", "discounting"],
+      "question": "In the return $G_t = \\sum_{k=0}^{\\infty} \\gamma^k R_{t+k+1}$, what is the effect of choosing $\\gamma$ close to $0$?",
+      "options": [
+        "The agent becomes far-sighted, valuing distant rewards almost as much as immediate ones",
+        "The agent becomes myopic, weighting immediate rewards heavily and future rewards little",
+        "The return diverges for any non-zero reward",
+        "It has no effect unless the MDP is episodic"
+      ],
+      "answer": 1,
+      "explanation": "$\\gamma^k$ shrinks quickly when $\\gamma$ is small, so rewards far in the future contribute almost nothing — the agent is myopic. As $\\gamma \\to 1$ the agent becomes far-sighted. Discounting also keeps the infinite sum finite when rewards are bounded."
+    },
+    {
+      "id": "state-value-bellman",
+      "kind": "mcq",
+      "tags": ["bellman", "value-functions"],
+      "question": "The Bellman expectation equation for the state-value function under a policy $\\pi$ is $v_\\pi(s) = \\sum_a \\pi(a \\mid s) \\sum_{s'} P(s' \\mid s,a)\\,[\\,r + \\gamma\\, v_\\pi(s')\\,]$. What kind of equation is this?",
+      "options": [
+        "A one-step lookahead that defines $v_\\pi$ recursively in terms of itself",
+        "A closed-form solution requiring no iteration",
+        "An approximation valid only for deterministic policies",
+        "The definition of the optimal value function $v_*$"
+      ],
+      "answer": 0,
+      "explanation": "It is a self-consistency (recursive) condition: the value of a state equals the expected immediate reward plus the discounted value of the successor state. It relates $v_\\pi$ to itself one step ahead. The *optimal* version replaces the policy average with a $\\max$ over actions."
+    },
+    {
+      "id": "bellman-optimality",
+      "kind": "mcq",
+      "tags": ["bellman", "optimality"],
+      "question": "How does the Bellman optimality equation for $v_*$ differ from the Bellman expectation equation for $v_\\pi$?",
+      "options": [
+        "It drops the discount factor $\\gamma$",
+        "It replaces the expectation over actions with a maximisation over actions",
+        "It sums over policies instead of states",
+        "It only applies to continuing (non-episodic) tasks"
+      ],
+      "answer": 1,
+      "explanation": "$v_*(s) = \\max_a \\sum_{s'} P(s' \\mid s,a)[r + \\gamma v_*(s')]$. The optimal value of a state assumes we act greedily, so the policy-weighted average $\\sum_a \\pi(a\\mid s)$ becomes a $\\max_a$. This makes the equation non-linear, which is why we solve it iteratively."
+    },
+    {
+      "id": "policy-vs-value-iteration",
+      "kind": "mcq",
+      "tags": ["dynamic-programming"],
+      "question": "What most clearly distinguishes value iteration from policy iteration?",
+      "options": [
+        "Value iteration needs the model $P$ while policy iteration does not",
+        "Policy iteration alternates full policy evaluation with policy improvement; value iteration folds a single Bellman-optimality update into each sweep",
+        "Value iteration cannot converge to the optimal policy",
+        "Policy iteration only works for deterministic MDPs"
+      ],
+      "answer": 1,
+      "explanation": "Both are model-based dynamic-programming methods. Policy iteration evaluates the current policy to convergence, then improves it, and repeats. Value iteration skips full evaluation: each sweep applies the Bellman optimality backup once, effectively truncating evaluation to a single step."
+    },
+    {
+      "id": "q-vs-v",
+      "kind": "mcq",
+      "tags": ["value-functions"],
+      "question": "What does the action-value function $q_\\pi(s, a)$ represent that $v_\\pi(s)$ does not make explicit?",
+      "options": [
+        "The probability of reaching a terminal state",
+        "The expected return from $s$ after committing to action $a$, then following $\\pi$",
+        "The reward of state $s$ regardless of policy",
+        "The number of steps until the episode ends"
+      ],
+      "answer": 1,
+      "explanation": "$q_\\pi(s,a)$ fixes the first action to $a$ and then follows $\\pi$, whereas $v_\\pi(s)$ averages over the first action according to $\\pi$. They relate by $v_\\pi(s) = \\sum_a \\pi(a\\mid s)\\, q_\\pi(s,a)$. Having $q$ makes greedy improvement trivial — just pick $\\arg\\max_a q$."
+    },
+    {
+      "id": "mdp-front-back-policy",
+      "kind": "flashcard",
+      "tags": ["definitions"],
+      "front": "What is a (deterministic) policy $\\pi$ in an MDP?",
+      "back": "A mapping from states to actions, $\\pi: S \\to A$ (or, stochastically, a distribution $\\pi(a \\mid s)$ over actions for each state). It is the object we are solving for: a rule for how to act in every state."
+    },
+    {
+      "id": "mdp-front-back-optimal",
+      "kind": "flashcard",
+      "tags": ["optimality"],
+      "front": "State the relationship between $v_*$ and an optimal policy $\\pi_*$.",
+      "back": "An optimal policy acts greedily with respect to the optimal value function: $\\pi_*(s) = \\arg\\max_a \\sum_{s'} P(s'\\mid s,a)\\,[\\,r + \\gamma\\, v_*(s')\\,]$. Every MDP has at least one deterministic optimal policy, and all optimal policies share the same $v_*$."
+    }
+  ]
+}
