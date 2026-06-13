@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getChapter, isChapterId } from '../data/chapters';
 import { loadDeck, type DeckContents } from '../lib/decks';
 import { removeCard } from '../lib/authoring';
+import { studyCount, type StudyCount } from '../lib/review';
 import { isPersisted } from '../lib/db';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
@@ -108,12 +109,14 @@ export function DeckView({ deckId }: { deckId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState>({ open: false, kind: 'flashcard' });
   const [persisted, setPersisted] = useState<boolean | null>(null);
+  const [study, setStudy] = useState<StudyCount | null>(null);
 
   const valid = isChapterId(deckId);
   const chapter = valid ? getChapter(deckId) : undefined;
 
   const reload = useCallback(() => {
     if (!valid) return Promise.resolve();
+    void studyCount(deckId as DeckId).then(setStudy);
     return loadDeck(deckId as DeckId)
       .then((c) => setContents(c))
       .catch((e) => setError(String(e)));
@@ -123,6 +126,7 @@ export function DeckView({ deckId }: { deckId: string }) {
     if (!valid) return;
     setContents(null);
     setError(null);
+    setStudy(null);
     void reload();
     void isPersisted().then(setPersisted);
   }, [valid, reload]);
@@ -164,6 +168,25 @@ export function DeckView({ deckId }: { deckId: string }) {
           Read the chapter notes ↗
         </a>
       </div>
+
+      {study && (study.due > 0 || study.new > 0) && (
+        <div className="review-banner">
+          <div>
+            <span className="review-banner-count">
+              {study.due > 0 && `${study.due} due today`}
+              {study.due > 0 && study.new > 0 && ' · '}
+              {study.new > 0 && `${study.new} new`}
+            </span>
+            <p className="muted small">Flashcards ready to review with spaced repetition.</p>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate({ name: 'review', deckId })}
+          >
+            Review
+          </button>
+        </div>
+      )}
 
       {error && <p className="error">Couldn’t load this deck: {error}</p>}
 

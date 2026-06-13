@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Card, DeckId } from '../types';
+import type { Card, DeckId, ReviewRecord } from '../types';
 
 // A thin wrapper over IndexedDB (via idb) for the user's authored cards.
 //
@@ -11,8 +11,9 @@ import type { Card, DeckId } from '../types';
 // are loaded separately (see lib/decks.ts).
 
 const DB_NAME = 'actual-intelligence';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const CARD_STORE = 'cards';
+const REVIEW_STORE = 'reviews';
 
 interface AIDBSchema extends DBSchema {
   cards: {
@@ -21,8 +22,16 @@ interface AIDBSchema extends DBSchema {
     indexes: {
       /** All cards in a deck. */
       'by-deck': DeckId;
-      /** Due-today queries: scan ascending by due timestamp within a deck. */
-      'by-deck-due': [DeckId, number];
+    };
+  };
+  reviews: {
+    key: string;
+    value: ReviewRecord;
+    indexes: {
+      /** All review records in a deck. */
+      'by-deck': DeckId;
+      /** Due-date queries across all decks. */
+      'by-due': number;
     };
   };
 }
@@ -32,11 +41,24 @@ let dbPromise: Promise<IDBPDatabase<AIDBSchema>> | null = null;
 function getDB(): Promise<IDBPDatabase<AIDBSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<AIDBSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const store = db.createObjectStore(CARD_STORE, { keyPath: 'id' });
-        store.createIndex('by-deck', 'deck');
-        // Compound index lets us page through a deck ordered by due date.
-        store.createIndex('by-deck-due', ['deck', 'review.due']);
+      upgrade(db, oldVersion, _newVersion, tx) {
+        if (oldVersion < 1) {
+          const cards = db.createObjectStore(CARD_STORE, { keyPath: 'id' });
+          cards.createIndex('by-deck', 'deck');
+        }
+        if (oldVersion < 2) {
+          // Earlier dev builds embedded review state on the card with a
+          // compound index; drop it if present, scheduling now lives separately.
+          const cards = tx.objectStore(CARD_STORE);
+          if (cards.indexNames.contains('by-deck-due' as never)) {
+            cards.deleteIndex('by-deck-due' as never);
+          }
+          const reviews = db.createObjectStore(REVIEW_STORE, {
+            keyPath: 'cardId',
+          });
+          reviews.createIndex('by-deck', 'deck');
+          reviews.createIndex('by-due', 'due');
+        }
       },
     });
   }
@@ -100,7 +122,43 @@ export async function putCards(cards: Card[]): Promise<void> {
 
 export async function deleteCard(id: string): Promise<void> {
   const db = await getDB();
-  await db.delete(CARD_STORE, id);
+  const tx = db.transaction([CARD_STORE, REVIEW_STORE], 'readwrite');
+  await Promise.all([
+    tx.objectStore(CARD_STORE).delete(id),
+    tx.objectStore(REVIEW_STORE).delete(id),
+  ]);
+  await tx.done;
+}
+
+// ---- Review records ------------------------------------------------------
+
+export async function getReview(cardId: string): Promise<ReviewRecord | undefined> {
+  const db = await getDB();
+  return db.get(REVIEW_STORE, cardId);
+}
+
+export async function putReview(record: ReviewRecord): Promise<ReviewRecord> {
+  const db = await getDB();
+  await db.put(REVIEW_STORE, record);
+  return record;
+}
+
+export async function getReviewsByDeck(deck: DeckId): Promise<ReviewRecord[]> {
+  const db = await getDB();
+  return db.getAllFromIndex(REVIEW_STORE, 'by-deck', deck);
+}
+
+export async function getAllReviews(): Promise<ReviewRecord[]> {
+  const db = await getDB();
+  return db.getAll(REVIEW_STORE);
+}
+
+/** Import helper: write many review records in one transaction. */
+export async function putReviews(records: ReviewRecord[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(REVIEW_STORE, 'readwrite');
+  await Promise.all(records.map((r) => tx.store.put(r)));
+  await tx.done;
 }
 
 /** Count of user cards per deck, for the deck list. */

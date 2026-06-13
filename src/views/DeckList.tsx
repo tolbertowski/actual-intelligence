@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { CHAPTERS } from '../data/chapters';
 import { countCardsByDeck } from '../lib/db';
 import { countShipped, hasShippedContent } from '../lib/decks';
+import { studyCountsByDeck, type StudyCount } from '../lib/review';
 import { navigate } from '../hooks/useHashRoute';
 import type { ChapterId } from '../types';
 
 interface DeckSummary {
   shipped: number;
   user: number;
+  due: number;
 }
 
 function useDeckSummaries() {
@@ -19,13 +21,15 @@ function useDeckSummaries() {
     let cancelled = false;
     (async () => {
       const userCounts = await countCardsByDeck();
+      const study = await studyCountsByDeck();
       const shippedEntries = await Promise.all(
         CHAPTERS.map(async (c) => [c.id, await countShipped(c.id)] as const),
       );
       if (cancelled) return;
       const next: Record<string, DeckSummary> = {};
       for (const [id, shipped] of shippedEntries) {
-        next[id] = { shipped, user: userCounts[id] ?? 0 };
+        const s: StudyCount = study[id] ?? { due: 0, new: 0 };
+        next[id] = { shipped, user: userCounts[id] ?? 0, due: s.due };
       }
       setSummaries(next);
     })();
@@ -76,8 +80,11 @@ export function DeckList() {
                   <span className="deck-row-title">{chapter.title}</span>
                   <span className="deck-row-blurb muted">{chapter.blurb}</span>
                 </span>
-                <span className="deck-row-meta muted">
-                  {summaries ? (empty ? 'No cards yet' : countLabel(s)) : '…'}
+                <span className="deck-row-meta">
+                  {s && s.due > 0 && <span className="due-badge">{s.due} due</span>}
+                  <span className="muted">
+                    {summaries ? (empty ? 'No cards yet' : countLabel(s)) : '…'}
+                  </span>
                 </span>
               </button>
             </li>

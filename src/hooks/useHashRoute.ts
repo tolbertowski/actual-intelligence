@@ -4,25 +4,31 @@ import { useEffect, useState } from 'react';
 // so the app works as plain static files on GitHub Pages with no 404 dance.
 //
 // Routes:
-//   #/                 deck list
-//   #/deck/:deckId      a single deck
+//   #/                       deck list
+//   #/deck/:deckId            a single deck
+//   #/deck/:deckId/review     a review session for that deck
 
 export type Route =
   | { name: 'decks' }
-  | { name: 'deck'; deckId: string };
+  | { name: 'deck'; deckId: string }
+  | { name: 'review'; deckId: string };
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/';
-  const parts = path.split('/').filter(Boolean); // ['deck', 'mdps']
+  const parts = path.split('/').filter(Boolean); // ['deck', 'mdps', 'review']
   if (parts[0] === 'deck' && parts[1]) {
-    return { name: 'deck', deckId: decodeURIComponent(parts[1]) };
+    const deckId = decodeURIComponent(parts[1]);
+    if (parts[2] === 'review') return { name: 'review', deckId };
+    return { name: 'deck', deckId };
   }
   return { name: 'decks' };
 }
 
 export function navigate(route: Route): void {
-  const hash =
-    route.name === 'deck' ? `#/deck/${encodeURIComponent(route.deckId)}` : '#/';
+  let hash = '#/';
+  if (route.name === 'deck') hash = `#/deck/${encodeURIComponent(route.deckId)}`;
+  else if (route.name === 'review')
+    hash = `#/deck/${encodeURIComponent(route.deckId)}/review`;
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 

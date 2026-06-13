@@ -406,6 +406,182 @@
   margin: 0 1px;
 }
 
+/* ---- Due badge + review banner ----------------------------------------- */
+
+.deck-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.due-badge {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 1px 9px;
+  white-space: nowrap;
+}
+
+.review-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  margin-bottom: 32px;
+  background: var(--surface);
+  border: 0.5px solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.review-banner-count {
+  font-weight: 600;
+}
+.review-banner p {
+  margin: 2px 0 0;
+}
+
+/* ---- Review session ---------------------------------------------------- */
+
+.review-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 120px);
+}
+.review-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.new-tag {
+  margin-left: 8px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.review-progress {
+  height: 2px;
+  background: var(--hairline);
+  border-radius: 2px;
+  margin: 4px 0 8px;
+  overflow: hidden;
+}
+.review-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+/* The card is the hero: large, centred, generous. */
+.review-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 320px;
+  margin: 12px 0;
+  padding: 40px 28px;
+  background: var(--surface);
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.review-card:hover {
+  border-color: var(--hairline-strong);
+}
+.review-card-face {
+  font-size: 24px;
+  line-height: 1.4;
+}
+.review-card-divider {
+  width: 64px;
+  margin: 22px auto;
+  border-top-color: var(--hairline-strong);
+}
+.review-card-back {
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.review-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 8px;
+}
+.review-flip {
+  min-width: 200px;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.grade-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px 0 8px;
+}
+.grade-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 8px;
+  background: var(--surface);
+  border: 0.5px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.grade-btn:hover {
+  background: var(--surface-sunken);
+}
+.grade-key {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.grade-label {
+  font-weight: 550;
+}
+.grade-interval {
+  font-size: 12px;
+}
+.grade-again {
+  border-color: color-mix(in srgb, var(--bad) 40%, var(--hairline-strong));
+}
+.grade-again:hover {
+  background: var(--bad-soft);
+}
+.grade-easy {
+  border-color: color-mix(in srgb, var(--good) 40%, var(--hairline-strong));
+}
+.grade-easy:hover {
+  background: var(--good-soft);
+}
+
+.review-done-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 48px 0;
+  max-width: 48ch;
+}
+.review-done-body h1 {
+  font-size: 26px;
+}
+
 @media (max-width: 520px) {
   .deck-intro h1 {
     font-size: 24px;
@@ -423,5 +599,15 @@
   .modal-actions {
     flex: 1;
     justify-content: flex-end;
+  }
+  .review-card-face {
+    font-size: 21px;
+  }
+  .grade-btn {
+    min-height: 58px;
+    padding: 8px 4px;
+  }
+  .grade-interval {
+    font-size: 11px;
   }
 }

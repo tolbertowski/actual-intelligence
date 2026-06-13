@@ -184,9 +184,9 @@ export async function createCard(deck: DeckId, draft: CardDraft): Promise<Card> 
 export async function updateCard(id: string, draft: CardDraft): Promise<Card> {
   const existing = await getCard(id);
   if (!existing) throw new Error(`No card with id ${id}`);
-  const { id: _id, deck, status, source, review, createdAt } = existing;
+  const { id: _id, deck, status, source, createdAt } = existing;
   const card = buildCard(
-    { id: _id, deck, status, source, review, createdAt, updatedAt: Date.now() },
+    { id: _id, deck, status, source, createdAt, updatedAt: Date.now() },
     draft,
   );
   await putCard(card);

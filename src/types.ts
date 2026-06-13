@@ -47,8 +47,6 @@ interface CardBase {
   tags: string[];
   status: CardStatus;
   source: CardSource;
-  /** Spaced-repetition state. Absent until the card is first reviewed. */
-  review?: ReviewState;
   /** Epoch milliseconds. */
   createdAt: number;
   updatedAt: number;
@@ -75,8 +73,7 @@ export interface MCQCard extends CardBase {
 export type Card = Flashcard | MCQCard;
 
 /**
- * SM-2 spaced-repetition state, stored per card in IndexedDB.
- * See lib/sm2.ts for the scheduling algorithm.
+ * SM-2 spaced-repetition state. See lib/sm2.ts for the scheduling algorithm.
  */
 export interface ReviewState {
   /** Easiness factor; SM-2 floor is 1.3. */
@@ -89,6 +86,16 @@ export interface ReviewState {
   due: number;
   /** Epoch milliseconds of the most recent review. */
   lastReviewed: number;
+}
+
+/**
+ * A review record persisted in its own IndexedDB store, keyed by card id.
+ * Kept separate from the card so that scheduling state can attach to shipped
+ * cards (which aren't stored in IndexedDB) as well as to user cards.
+ */
+export interface ReviewRecord extends ReviewState {
+  cardId: string;
+  deck: DeckId;
 }
 
 /** A recall grade, 0–5 in SM-2. The UI maps keys 1–4 onto the useful range. */
