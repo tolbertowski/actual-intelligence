@@ -46,7 +46,7 @@ the path to sharing decks with classmates.
 Early. Built feature-by-feature:
 
 1. ✅ Deck list + open a deck (shipped quiz JSON + your IndexedDB cards)
-2. ⬜ Write / edit / delete a flashcard
+2. ✅ Write / edit / delete a flashcard
 3. ⬜ Spaced-repetition review (SM-2)
 4. ⬜ Quiz mode over shipped MCQs
 5. ⬜ Flashcard → quiz via in-browser templating

@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getChapter, isChapterId } from '../data/chapters';
 import { loadDeck, type DeckContents } from '../lib/decks';
+import { removeCard } from '../lib/authoring';
+import { isPersisted } from '../lib/db';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
-import type { Card } from '../types';
+import { CardEditor } from '../components/CardEditor';
+import type { Card, CardKind, DeckId } from '../types';
 
-function CardPreview({ card }: { card: Card }) {
+function ShippedCardPreview({ card }: { card: Card }) {
   return (
     <li className="card-preview">
       <div className="card-preview-kind muted">
-        {card.kind === 'mcq' ? 'Quiz' : 'Flashcard'}
-        {card.source === 'shipped' && <span className="tag">shipped</span>}
+        {card.kind === 'mcq' ? 'quiz' : 'flashcard'}
+        <span className="tag">shipped</span>
       </div>
       <div className="card-preview-body">
         <RichText serif>
@@ -30,25 +33,99 @@ function CardPreview({ card }: { card: Card }) {
   );
 }
 
+function UserCardRow({
+  card,
+  onEdit,
+  onDeleted,
+}: {
+  card: Card;
+  onEdit: (card: Card) => void;
+  onDeleted: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  const del = async () => {
+    await removeCard(card.id);
+    onDeleted();
+  };
+
+  return (
+    <li className="card-preview user-card">
+      <div className="card-preview-kind muted">
+        {card.kind === 'mcq' ? 'quiz' : 'flashcard'}
+      </div>
+      <div className="card-preview-body">
+        <RichText serif>
+          {card.kind === 'mcq' ? card.question : card.front}
+        </RichText>
+      </div>
+      {card.tags.length > 0 && (
+        <div className="card-preview-tags">
+          {card.tags.map((t) => (
+            <span key={t} className="tag">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="user-card-actions">
+        {confirming ? (
+          <>
+            <span className="muted small">Delete this card?</span>
+            <button className="btn btn-ghost small" onClick={() => setConfirming(false)}>
+              Keep
+            </button>
+            <button className="btn small danger" onClick={() => void del()}>
+              Delete
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn btn-ghost small" onClick={() => onEdit(card)}>
+              Edit
+            </button>
+            <button
+              className="btn btn-ghost small"
+              onClick={() => setConfirming(true)}
+            >
+              Delete
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
+interface EditorState {
+  open: boolean;
+  card?: Card;
+  kind: CardKind;
+}
+
 export function DeckView({ deckId }: { deckId: string }) {
   const [contents, setContents] = useState<DeckContents | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editor, setEditor] = useState<EditorState>({ open: false, kind: 'flashcard' });
+  const [persisted, setPersisted] = useState<boolean | null>(null);
 
   const valid = isChapterId(deckId);
   const chapter = valid ? getChapter(deckId) : undefined;
 
+  const reload = useCallback(() => {
+    if (!valid) return Promise.resolve();
+    return loadDeck(deckId as DeckId)
+      .then((c) => setContents(c))
+      .catch((e) => setError(String(e)));
+  }, [deckId, valid]);
+
   useEffect(() => {
     if (!valid) return;
-    let cancelled = false;
     setContents(null);
     setError(null);
-    loadDeck(deckId)
-      .then((c) => !cancelled && setContents(c))
-      .catch((e) => !cancelled && setError(String(e)));
-    return () => {
-      cancelled = true;
-    };
-  }, [deckId, valid]);
+    void reload();
+    void isPersisted().then(setPersisted);
+  }, [valid, reload]);
 
   if (!valid || !chapter) {
     return (
@@ -60,6 +137,11 @@ export function DeckView({ deckId }: { deckId: string }) {
       </div>
     );
   }
+
+  const openNew = (kind: CardKind) => setEditor({ open: true, kind });
+  const openEdit = (card: Card) =>
+    setEditor({ open: true, card, kind: card.kind });
+  const closeEditor = () => setEditor((e) => ({ ...e, open: false, card: undefined }));
 
   return (
     <div className="page">
@@ -103,7 +185,7 @@ export function DeckView({ deckId }: { deckId: string }) {
             ) : (
               <ul className="card-preview-list" role="list">
                 {contents.shipped.map((c) => (
-                  <CardPreview key={c.id} card={c} />
+                  <ShippedCardPreview key={c.id} card={c} />
                 ))}
               </ul>
             )}
@@ -112,7 +194,12 @@ export function DeckView({ deckId }: { deckId: string }) {
           <section className="deck-section">
             <div className="deck-section-head">
               <h2>Your flashcards</h2>
-              <span className="muted">{contents.user.length}</span>
+              <div className="deck-section-head-actions">
+                <span className="muted">{contents.user.length}</span>
+                <button className="btn btn-primary small" onClick={() => openNew('flashcard')}>
+                  Write a card
+                </button>
+              </div>
             </div>
             <hr className="hairline" />
             {contents.user.length === 0 ? (
@@ -121,20 +208,43 @@ export function DeckView({ deckId }: { deckId: string }) {
                   Nothing here yet. The cards you write are the studying — start
                   one and it’s saved to this device.
                 </p>
-                <p className="muted small">
-                  Authoring lands next. For now, this is where your cards will
-                  live.
-                </p>
+                <button className="btn" onClick={() => openNew('flashcard')}>
+                  Write your first card
+                </button>
               </div>
             ) : (
               <ul className="card-preview-list" role="list">
                 {contents.user.map((c) => (
-                  <CardPreview key={c.id} card={c} />
+                  <UserCardRow
+                    key={c.id}
+                    card={c}
+                    onEdit={openEdit}
+                    onDeleted={reload}
+                  />
                 ))}
               </ul>
             )}
+
+            <p className="storage-note muted small">
+              {persisted
+                ? 'Your cards live on this device, on purpose. Export is the backup.'
+                : 'Your cards live on this device, on purpose — this storage can be cleared by the browser, so export is the backup.'}
+            </p>
           </section>
         </>
+      )}
+
+      {editor.open && (
+        <CardEditor
+          deck={deckId as DeckId}
+          card={editor.card}
+          initialKind={editor.kind}
+          onClose={closeEditor}
+          onSaved={() => {
+            void reload();
+            void isPersisted().then(setPersisted);
+          }}
+        />
       )}
     </div>
   );
