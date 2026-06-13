@@ -69,7 +69,7 @@ const NOTES_BASE = 'https://comp90054.github.io/reinforcement-learning';
 
 export const CHAPTERS: ChapterMeta[] = CHAPTER_IDS.map((id) => ({
   id,
-  notesPath: `${NOTES_BASE}/notebooks/${id}.html`,
+  notesPath: `${NOTES_BASE}/${id}.html`,
   ...META[id],
 }));
 

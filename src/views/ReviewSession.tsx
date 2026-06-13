@@ -40,27 +40,23 @@ export function ReviewSession({ deckId }: { deckId: string }) {
 
   const current = queue[index];
 
-  const advance = useCallback(() => {
-    setFlipped(false);
-    if (index + 1 >= queue.length) {
-      setPhase('done');
-    } else {
-      setIndex((i) => i + 1);
-    }
-  }, [index, queue.length]);
-
   const grade = useCallback(
     async (g: Grade) => {
       if (!current) return;
       await gradeCard(current.card, current.prior, g);
       setReviewed((n) => n + 1);
+      setFlipped(false);
+
       // A lapsed card comes back later in the same session so it gets drilled.
-      if (isLapse(g)) {
-        setQueue((q) => [...q, { ...current, isNew: false }]);
-      }
-      advance();
+      // Account for the append when deciding whether the session is finished,
+      // so a re-queued card is never skipped.
+      const lapsed = isLapse(g);
+      if (lapsed) setQueue((q) => [...q, { ...current, isNew: false }]);
+      const nextLength = queue.length + (lapsed ? 1 : 0);
+      if (index + 1 >= nextLength) setPhase('done');
+      else setIndex((i) => i + 1);
     },
-    [current, advance],
+    [current, index, queue.length],
   );
 
   // Keyboard: space/enter flips; 1–4 grade once flipped.
@@ -124,7 +120,16 @@ export function ReviewSession({ deckId }: { deckId: string }) {
     );
   }
 
-  // phase === 'reviewing'
+  // phase === 'reviewing'. Guard against the queue/index briefly being out of
+  // step (e.g. across a reload) so we never read a card off the end.
+  if (!current) {
+    return (
+      <div className="page">
+        <p className="muted">Loading…</p>
+      </div>
+    );
+  }
+
   const total = queue.length;
   const progress = total > 0 ? (index / total) * 100 : 0;
 
