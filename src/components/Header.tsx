@@ -1,8 +1,9 @@
 import { useTheme } from '../hooks/useTheme';
-import { navigate } from '../hooks/useHashRoute';
+import { navigate, useHashRoute } from '../hooks/useHashRoute';
 
 export function Header() {
   const { theme, toggle } = useTheme();
+  const route = useHashRoute();
 
   return (
     <header className="app-header">
@@ -16,6 +17,28 @@ export function Header() {
       >
         Actual intelligence
       </a>
+      <nav className="app-nav">
+        <a
+          className={`app-nav-link${route.name === 'decks' ? ' active' : ''}`}
+          href="#/"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate({ name: 'decks' });
+          }}
+        >
+          Decks
+        </a>
+        <a
+          className={`app-nav-link${route.name === 'progress' ? ' active' : ''}`}
+          href="#/progress"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate({ name: 'progress' });
+          }}
+        >
+          Progress
+        </a>
+      </nav>
       <button
         className="icon-btn"
         onClick={toggle}

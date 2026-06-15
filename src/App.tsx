@@ -4,6 +4,7 @@ import { useHashRoute } from './hooks/useHashRoute';
 import { DeckList } from './views/DeckList';
 import { DeckView } from './views/DeckView';
 import { ReviewSession } from './views/ReviewSession';
+import { Progress } from './views/Progress';
 import './styles/app.css';
 
 export function App() {
@@ -16,6 +17,7 @@ export function App() {
         {/* Keyed by route so a crash on one screen resets when navigating away. */}
         <ErrorBoundary key={`${route.name}:${'deckId' in route ? route.deckId : ''}`}>
           {route.name === 'decks' && <DeckList />}
+          {route.name === 'progress' && <Progress />}
           {route.name === 'deck' && <DeckView deckId={route.deckId} />}
           {route.name === 'review' && <ReviewSession deckId={route.deckId} />}
         </ErrorBoundary>

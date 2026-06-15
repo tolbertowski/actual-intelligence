@@ -15,7 +15,7 @@ export function endOfToday(now: number = Date.now()): number {
   return d.getTime();
 }
 
-function isReviewable(card: Card): card is Flashcard {
+export function isReviewable(card: Card): card is Flashcard {
   return card.kind === 'flashcard' && card.status !== 'suspended';
 }
 
@@ -100,10 +100,4 @@ export async function studyCountsByDeck(): Promise<Record<string, StudyCount>> {
   for (const [, cards] of shippedByDeck) cards.forEach(tally);
   userCards.forEach(tally);
   return result;
-}
-
-/** Due + new counts for a single deck. */
-export async function studyCount(deck: DeckId): Promise<StudyCount> {
-  const counts = await studyCountsByDeck();
-  return counts[deck] ?? { due: 0, new: 0 };
 }
