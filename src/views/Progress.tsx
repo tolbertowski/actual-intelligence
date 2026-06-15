@@ -3,6 +3,7 @@ import { computeStats, type CollectionStats } from '../lib/stats';
 import { CHAPTERS } from '../data/chapters';
 import { navigate } from '../hooks/useHashRoute';
 import { MaturityBar, StatGrid, DueForecast } from '../components/Stats';
+import { BackupPanel } from '../components/BackupPanel';
 import type { ChapterId } from '../types';
 
 export function Progress() {
@@ -93,6 +94,8 @@ export function Progress() {
           </section>
         </>
       )}
+
+      <BackupPanel onImported={() => void computeStats().then(setStats)} />
     </div>
   );
 }

@@ -807,6 +807,38 @@
   flex-shrink: 0;
 }
 
+/* ---- Backup panel ------------------------------------------------------ */
+
+.backup-panel {
+  margin-top: 44px;
+  padding: 20px;
+  background: var(--surface-sunken);
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius-lg);
+}
+.backup-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.backup-head p {
+  margin: 4px 0 0;
+  max-width: 56ch;
+}
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+.backup-msg {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--good);
+}
+.backup-msg.error {
+  color: var(--bad);
+}
+
 @media (max-width: 520px) {
   .deck-intro h1 {
     font-size: 24px;

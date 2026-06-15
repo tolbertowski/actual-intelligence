@@ -258,8 +258,18 @@ export function DeckView({ deckId }: { deckId: string }) {
 
             <p className="storage-note muted small">
               {persisted
-                ? 'Your cards live on this device, on purpose. Export is the backup.'
-                : 'Your cards live on this device, on purpose — this storage can be cleared by the browser, so export is the backup.'}
+                ? 'Your cards live on this device, on purpose. '
+                : 'Your cards live on this device, on purpose — this storage can be cleared by the browser, so '}
+              <a
+                href="#/progress"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate({ name: 'progress' });
+                }}
+              >
+                export is the backup
+              </a>
+              .
             </p>
           </section>
         </>
