@@ -170,22 +170,41 @@ export function DeckView({ deckId }: { deckId: string }) {
         </a>
       </div>
 
-      {stats && (stats.dueToday > 0 || stats.new > 0) && (
+      {stats && stats.total > 0 && (
         <div className="review-banner">
           <div>
             <span className="review-banner-count">
-              {stats.dueToday > 0 && `${stats.dueToday} due today`}
-              {stats.dueToday > 0 && stats.new > 0 && ' · '}
-              {stats.new > 0 && `${stats.new} new`}
+              {stats.dueToday > 0 || stats.new > 0
+                ? [
+                    stats.dueToday > 0 && `${stats.dueToday} due today`,
+                    stats.new > 0 && `${stats.new} new`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : 'Nothing due today'}
             </span>
-            <p className="muted small">Flashcards ready to review with spaced repetition.</p>
+            <p className="muted small">
+              {stats.dueToday > 0 || stats.new > 0
+                ? 'Flashcards ready to review with spaced repetition.'
+                : 'You’re caught up — or practise the whole deck any time.'}
+            </p>
           </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate({ name: 'review', deckId })}
-          >
-            Review
-          </button>
+          <div className="review-banner-actions">
+            {(stats.dueToday > 0 || stats.new > 0) && (
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate({ name: 'review', deckId })}
+              >
+                Review
+              </button>
+            )}
+            <button
+              className={`btn${stats.dueToday > 0 || stats.new > 0 ? '' : ' btn-primary'}`}
+              onClick={() => navigate({ name: 'practice', deckId })}
+            >
+              Practice all
+            </button>
+          </div>
         </div>
       )}
 

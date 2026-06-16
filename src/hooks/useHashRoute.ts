@@ -8,12 +8,14 @@ import { useEffect, useState } from 'react';
 //   #/progress                collection-wide progress / stats
 //   #/deck/:deckId            a single deck
 //   #/deck/:deckId/review     a review session for that deck
+//   #/deck/:deckId/practice   drill all of a deck's flashcards (no scheduling)
 
 export type Route =
   | { name: 'decks' }
   | { name: 'progress' }
   | { name: 'deck'; deckId: string }
-  | { name: 'review'; deckId: string };
+  | { name: 'review'; deckId: string }
+  | { name: 'practice'; deckId: string };
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/';
@@ -22,6 +24,7 @@ function parse(hash: string): Route {
   if (parts[0] === 'deck' && parts[1]) {
     const deckId = decodeURIComponent(parts[1]);
     if (parts[2] === 'review') return { name: 'review', deckId };
+    if (parts[2] === 'practice') return { name: 'practice', deckId };
     return { name: 'deck', deckId };
   }
   return { name: 'decks' };
@@ -33,6 +36,8 @@ export function navigate(route: Route): void {
   else if (route.name === 'deck') hash = `#/deck/${encodeURIComponent(route.deckId)}`;
   else if (route.name === 'review')
     hash = `#/deck/${encodeURIComponent(route.deckId)}/review`;
+  else if (route.name === 'practice')
+    hash = `#/deck/${encodeURIComponent(route.deckId)}/practice`;
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 

@@ -57,6 +57,36 @@ export async function loadReviewQueue(deck: DeckId): Promise<QueueItem[]> {
   return [...due.map((d) => d.item), ...fresh];
 }
 
+function shuffled<T>(input: readonly T[]): T[] {
+  const a = input.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Every flashcard in a deck, shuffled, regardless of due date. Used by Practice
+ * mode so the deck can be studied at any time. Grades in practice are not
+ * persisted (see ReviewSession), so the SM-2 schedule is left untouched.
+ */
+export async function loadPracticeQueue(deck: DeckId): Promise<QueueItem[]> {
+  const [shipped, userCards, reviews] = await Promise.all([
+    loadShippedDeck(deck),
+    getAllCards(),
+    getReviewsByDeck(deck),
+  ]);
+  const flashcards = [...shipped, ...userCards.filter((c) => c.deck === deck)].filter(
+    isReviewable,
+  );
+  const byCard = new Map(reviews.map((r) => [r.cardId, r]));
+  return shuffled(flashcards).map((card) => {
+    const r = byCard.get(card.id);
+    return { card, prior: r, isNew: !r };
+  });
+}
+
 /** Apply a grade to a card and persist the new review record. */
 export async function gradeCard(
   card: Card,

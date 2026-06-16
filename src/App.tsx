@@ -20,6 +20,9 @@ export function App() {
           {route.name === 'progress' && <Progress />}
           {route.name === 'deck' && <DeckView deckId={route.deckId} />}
           {route.name === 'review' && <ReviewSession deckId={route.deckId} />}
+          {route.name === 'practice' && (
+            <ReviewSession deckId={route.deckId} mode="practice" />
+          )}
         </ErrorBoundary>
       </main>
     </div>
