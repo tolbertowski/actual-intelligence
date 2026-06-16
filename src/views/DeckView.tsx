@@ -224,7 +224,17 @@ export function DeckView({ deckId }: { deckId: string }) {
           <section className="deck-section">
             <div className="deck-section-head">
               <h2>Quiz questions</h2>
-              <span className="muted">{contents.shipped.length}</span>
+              <div className="deck-section-head-actions">
+                <span className="muted">{contents.shipped.length}</span>
+                {contents.all.some((c) => c.kind === 'mcq') && (
+                  <button
+                    className="btn btn-primary small"
+                    onClick={() => navigate({ name: 'quiz', deckId })}
+                  >
+                    Start quiz
+                  </button>
+                )}
+              </div>
             </div>
             <hr className="hairline" />
             {contents.shipped.length === 0 ? (

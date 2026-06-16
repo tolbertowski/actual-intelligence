@@ -9,13 +9,15 @@ import { useEffect, useState } from 'react';
 //   #/deck/:deckId            a single deck
 //   #/deck/:deckId/review     a review session for that deck
 //   #/deck/:deckId/practice   drill all of a deck's flashcards (no scheduling)
+//   #/deck/:deckId/quiz       a quiz run over that deck's MCQs
 
 export type Route =
   | { name: 'decks' }
   | { name: 'progress' }
   | { name: 'deck'; deckId: string }
   | { name: 'review'; deckId: string }
-  | { name: 'practice'; deckId: string };
+  | { name: 'practice'; deckId: string }
+  | { name: 'quiz'; deckId: string };
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/';
@@ -25,6 +27,7 @@ function parse(hash: string): Route {
     const deckId = decodeURIComponent(parts[1]);
     if (parts[2] === 'review') return { name: 'review', deckId };
     if (parts[2] === 'practice') return { name: 'practice', deckId };
+    if (parts[2] === 'quiz') return { name: 'quiz', deckId };
     return { name: 'deck', deckId };
   }
   return { name: 'decks' };
@@ -38,6 +41,8 @@ export function navigate(route: Route): void {
     hash = `#/deck/${encodeURIComponent(route.deckId)}/review`;
   else if (route.name === 'practice')
     hash = `#/deck/${encodeURIComponent(route.deckId)}/practice`;
+  else if (route.name === 'quiz')
+    hash = `#/deck/${encodeURIComponent(route.deckId)}/quiz`;
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 

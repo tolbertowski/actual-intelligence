@@ -4,6 +4,7 @@ import { useHashRoute } from './hooks/useHashRoute';
 import { DeckList } from './views/DeckList';
 import { DeckView } from './views/DeckView';
 import { ReviewSession } from './views/ReviewSession';
+import { QuizSession } from './views/QuizSession';
 import { Progress } from './views/Progress';
 import './styles/app.css';
 
@@ -23,6 +24,7 @@ export function App() {
           {route.name === 'practice' && (
             <ReviewSession deckId={route.deckId} mode="practice" />
           )}
+          {route.name === 'quiz' && <QuizSession deckId={route.deckId} />}
         </ErrorBoundary>
       </main>
     </div>
