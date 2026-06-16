@@ -24,7 +24,8 @@ export interface MCQDraft {
   kind: 'mcq';
   question: string;
   options: string[];
-  answer: number;
+  /** Indices of every correct option. One = single answer, many = select-all. */
+  answers: number[];
   explanation: string;
   tags: string[];
 }
@@ -38,7 +39,7 @@ export function emptyDraft(kind: CardKind): CardDraft {
       kind: 'mcq',
       question: '',
       options: ['', '', '', ''],
-      answer: 0,
+      answers: [],
       explanation: '',
       tags: [],
     };
@@ -49,11 +50,18 @@ export function emptyDraft(kind: CardKind): CardDraft {
 /** Turn an existing card back into an editable draft. */
 export function draftFromCard(card: Card): CardDraft {
   if (card.kind === 'mcq') {
+    // Tolerate legacy cards that stored a single `answer` and no `answers`.
+    const legacy = (card as { answer?: number }).answer;
+    const answers = card.answers
+      ? [...card.answers]
+      : typeof legacy === 'number'
+        ? [legacy]
+        : [];
     return {
       kind: 'mcq',
       question: card.question,
       options: [...card.options],
-      answer: card.answer,
+      answers,
       explanation: card.explanation,
       tags: [...card.tags],
     };
@@ -99,8 +107,9 @@ export function validateDraft(draft: CardDraft): DraftError[] {
     const filled = draft.options.filter((o) => o.trim());
     if (filled.length < 2)
       errors.push({ field: 'options', message: 'Give at least two options.' });
-    if (!draft.options[draft.answer]?.trim())
-      errors.push({ field: 'answer', message: 'Mark the correct option.' });
+    const markedCorrect = draft.answers.filter((i) => draft.options[i]?.trim());
+    if (markedCorrect.length === 0)
+      errors.push({ field: 'answer', message: 'Mark at least one correct option.' });
     if (!draft.explanation.trim())
       errors.push({
         field: 'explanation',
@@ -132,23 +141,23 @@ function buildCard(env: CardEnvelope, draft: CardDraft): Card {
     };
     return card;
   }
-  // Filtering empty options can shift indices, so remap the answer to the
-  // surviving option's new position.
+  // Filtering empty options can shift indices, so remap each correct answer to
+  // its surviving option's new position.
   const kept: { text: string; original: number }[] = [];
   draft.options.forEach((o, i) => {
     const text = o.trim();
     if (text) kept.push({ text, original: i });
   });
-  const answer = Math.max(
-    0,
-    kept.findIndex((k) => k.original === draft.answer),
-  );
+  const answers = draft.answers
+    .map((a) => kept.findIndex((k) => k.original === a))
+    .filter((i) => i >= 0)
+    .sort((a, b) => a - b);
   const card: MCQCard = {
     ...env,
     kind: 'mcq',
     question: draft.question.trim(),
     options: kept.map((k) => k.text),
-    answer,
+    answers,
     explanation: draft.explanation.trim(),
     tags: draft.tags,
   };

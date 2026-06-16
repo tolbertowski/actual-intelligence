@@ -62,7 +62,11 @@ function isCard(value: unknown): value is Card {
   const c = value as Record<string, unknown>;
   if (typeof c.id !== 'string' || !VALID_DECKS.has(c.deck as string)) return false;
   if (c.kind === 'flashcard') return typeof c.front === 'string' && typeof c.back === 'string';
-  if (c.kind === 'mcq') return Array.isArray(c.options) && typeof c.answer === 'number';
+  if (c.kind === 'mcq')
+    return (
+      Array.isArray(c.options) &&
+      (Array.isArray(c.answers) || typeof c.answer === 'number')
+    );
   return false;
 }
 
@@ -121,6 +125,11 @@ export async function importBackup(backup: BackupFile): Promise<ImportResult> {
   for (const incoming of backup.cards) {
     // Imported cards are always the user's own, regardless of file contents.
     const card: Card = { ...incoming, source: 'user' };
+    // Migrate legacy single-answer MCQs (answer: number) to answers: number[].
+    if (card.kind === 'mcq' && !Array.isArray(card.answers)) {
+      const legacy = (incoming as { answer?: number }).answer;
+      card.answers = typeof legacy === 'number' ? [legacy] : [];
+    }
     const existing = cardById.get(card.id);
     if (!existing) {
       cardsToWrite.push(card);

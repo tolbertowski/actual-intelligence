@@ -64,8 +64,11 @@ export interface MCQCard extends CardBase {
   kind: 'mcq';
   question: string;
   options: string[];
-  /** Index into `options` of the correct answer. */
-  answer: number;
+  /**
+   * Indices into `options` of the correct answer(s). One index is an ordinary
+   * single-answer question; two or more makes it "select all that apply".
+   */
+  answers: number[];
   /** Always shown after answering, even on a correct response. */
   explanation: string;
 }
@@ -127,7 +130,11 @@ export interface ShippedDeck {
  */
 export type ShippedCard =
   | (Pick<Flashcard, 'kind' | 'front' | 'back'> & { id: string; tags?: string[] })
-  | (Pick<MCQCard, 'kind' | 'question' | 'options' | 'answer' | 'explanation'> & {
+  | (Pick<MCQCard, 'kind' | 'question' | 'options' | 'explanation'> & {
       id: string;
       tags?: string[];
+      /** Single correct option (convenient for hand-authoring). */
+      answer?: number;
+      /** Or several correct options for "select all that apply". */
+      answers?: number[];
     });

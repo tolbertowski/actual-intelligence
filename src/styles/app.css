@@ -830,6 +830,11 @@
   line-height: 1.4;
   margin: 24px 0 20px;
 }
+.quiz-multi-hint {
+  display: block;
+  font-family: var(--font-ui);
+  margin-top: 8px;
+}
 
 .quiz-options {
   list-style: none;
@@ -860,6 +865,14 @@
 }
 .quiz-option:disabled {
   cursor: default;
+}
+.quiz-option.picked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.quiz-option.picked .quiz-option-key,
+.quiz-option.picked .quiz-mark {
+  color: var(--accent);
 }
 .quiz-option-key {
   display: inline-flex;

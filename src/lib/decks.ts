@@ -33,12 +33,14 @@ function normaliseShipped(raw: ShippedCard, deck: DeckId, now: number): Card {
     updatedAt: now,
   };
   if (raw.kind === 'mcq') {
+    // Accept either `answers: [...]` or a single `answer: n` from the JSON.
+    const answers = raw.answers ?? (raw.answer != null ? [raw.answer] : []);
     return {
       ...base,
       kind: 'mcq',
       question: raw.question,
       options: raw.options,
-      answer: raw.answer,
+      answers,
       explanation: raw.explanation,
     };
   }

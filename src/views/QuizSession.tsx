@@ -13,7 +13,8 @@ export function QuizSession({ deckId }: { deckId: string }) {
 
   const [queue, setQueue] = useState<QuizItem[]>([]);
   const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [answered, setAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
 
@@ -26,7 +27,8 @@ export function QuizSession({ deckId }: { deckId: string }) {
     loadQuizQueue(deckId as DeckId).then((q) => {
       setQueue(q);
       setIndex(0);
-      setSelected(null);
+      setSelected([]);
+      setAnswered(false);
       setScore(0);
       setPhase(q.length === 0 ? 'done' : 'quizzing');
     });
@@ -49,41 +51,76 @@ export function QuizSession({ deckId }: { deckId: string }) {
   }, [deckId, valid]);
 
   const current = queue[index];
-  const answered = selected !== null;
+
+  // Did `sel` exactly match the set of correct options?
+  const isFullyCorrect = useCallback(
+    (sel: number[], item: QuizItem) => {
+      const correct = item.options.reduce<number[]>((acc, o, i) => {
+        if (o.correct) acc.push(i);
+        return acc;
+      }, []);
+      return (
+        sel.length === correct.length && correct.every((i) => sel.includes(i))
+      );
+    },
+    [],
+  );
+
+  // Lock in an answer (single-answer is instant; multi waits for "Check").
+  const finalize = useCallback(
+    (sel: number[]) => {
+      if (!current || sel.length === 0) return;
+      setSelected(sel);
+      setAnswered(true);
+      if (isFullyCorrect(sel, current)) setScore((s) => s + 1);
+    },
+    [current, isFullyCorrect],
+  );
 
   const choose = useCallback(
     (i: number) => {
-      if (selected !== null || !current) return;
-      setSelected(i);
-      if (current.options[i]?.correct) setScore((s) => s + 1);
+      if (answered || !current) return;
+      if (current.multi) {
+        // Toggle membership; the user submits with "Check answer".
+        setSelected((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]));
+      } else {
+        finalize([i]);
+      }
     },
-    [selected, current],
+    [answered, current, finalize],
   );
 
   const next = useCallback(() => {
-    setSelected(null);
+    setSelected([]);
+    setAnswered(false);
     if (index + 1 >= queue.length) setPhase('done');
     else setIndex((i) => i + 1);
   }, [index, queue.length]);
 
-  // Keyboard: number keys pick an option; Enter/Space advances once answered.
+  // Keyboard: number keys pick/toggle options; Enter submits a multi-answer
+  // question, then advances once answered.
   useEffect(() => {
     if (phase !== 'quizzing') return;
     const onKey = (e: KeyboardEvent) => {
-      if (!answered) {
-        const n = Number(e.key);
-        if (Number.isInteger(n) && n >= 1 && current && n <= current.options.length) {
+      if (answered) {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          choose(n - 1);
+          next();
         }
-      } else if (e.key === 'Enter' || e.key === ' ') {
+        return;
+      }
+      const n = Number(e.key);
+      if (Number.isInteger(n) && n >= 1 && current && n <= current.options.length) {
         e.preventDefault();
-        next();
+        choose(n - 1);
+      } else if (e.key === 'Enter' && current?.multi && selected.length > 0) {
+        e.preventDefault();
+        finalize(selected);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, answered, current, choose, next]);
+  }, [phase, answered, current, choose, next, finalize, selected]);
 
   if (phase === 'invalid' || !chapter) {
     return (
@@ -164,15 +201,21 @@ export function QuizSession({ deckId }: { deckId: string }) {
 
       <div className="quiz-question">
         <RichText serif>{current.card.question}</RichText>
+        {current.multi && (
+          <span className="quiz-multi-hint muted small">Select all that apply</span>
+        )}
       </div>
 
       <ul className="quiz-options" role="list">
         {current.options.map((opt, i) => {
+          const picked = selected.includes(i);
           let state = '';
           if (answered) {
             if (opt.correct) state = ' correct';
-            else if (i === selected) state = ' wrong';
+            else if (picked) state = ' wrong';
             else state = ' dim';
+          } else if (picked) {
+            state = ' picked';
           }
           return (
             <li key={i}>
@@ -180,15 +223,18 @@ export function QuizSession({ deckId }: { deckId: string }) {
                 className={`quiz-option${state}`}
                 onClick={() => choose(i)}
                 disabled={answered}
-                aria-pressed={i === selected}
+                aria-pressed={picked}
               >
                 <span className="quiz-option-key">{i + 1}</span>
                 <span className="quiz-option-text">
                   <RichText>{opt.text}</RichText>
                 </span>
                 {answered && opt.correct && <span className="quiz-mark">✓</span>}
-                {answered && !opt.correct && i === selected && (
+                {answered && !opt.correct && picked && (
                   <span className="quiz-mark">✗</span>
+                )}
+                {!answered && current.multi && picked && (
+                  <span className="quiz-mark">●</span>
                 )}
               </button>
             </li>
@@ -196,10 +242,25 @@ export function QuizSession({ deckId }: { deckId: string }) {
         })}
       </ul>
 
+      {!answered && current.multi && (
+        <div className="quiz-next-row">
+          <button
+            className="btn btn-primary"
+            onClick={() => finalize(selected)}
+            disabled={selected.length === 0}
+          >
+            Check answer
+          </button>
+          <span className="muted small kbd-hint">
+            <kbd>enter</kbd> to check
+          </span>
+        </div>
+      )}
+
       {answered && (
         <div className="quiz-feedback">
-          <div className={`quiz-verdict ${current.options[selected]?.correct ? 'good' : 'bad'}`}>
-            {current.options[selected]?.correct ? 'Correct' : 'Not quite'}
+          <div className={`quiz-verdict ${isFullyCorrect(selected, current) ? 'good' : 'bad'}`}>
+            {isFullyCorrect(selected, current) ? 'Correct' : 'Not quite'}
           </div>
           <div className="quiz-explanation">
             <RichText>{current.card.explanation}</RichText>

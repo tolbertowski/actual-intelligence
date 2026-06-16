@@ -12,8 +12,10 @@ export interface QuizOption {
 
 export interface QuizItem {
   card: MCQCard;
-  /** Options in presentation order (shuffled), with the answer flagged. */
+  /** Options in presentation order (shuffled), with the answer(s) flagged. */
   options: QuizOption[];
+  /** True when more than one option is correct ("select all that apply"). */
+  multi: boolean;
 }
 
 /** In-place Fisher–Yates shuffle on a copy. */
@@ -27,10 +29,11 @@ function shuffled<T>(input: readonly T[]): T[] {
 }
 
 function toItem(card: MCQCard): QuizItem {
+  const correct = new Set(card.answers);
   const options = shuffled(
-    card.options.map((text, i) => ({ text, correct: i === card.answer })),
+    card.options.map((text, i) => ({ text, correct: correct.has(i) })),
   );
-  return { card, options };
+  return { card, options, multi: correct.size > 1 };
 }
 
 /** Build a fresh, shuffled quiz queue for a deck (questions and options). */

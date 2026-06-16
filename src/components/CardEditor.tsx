@@ -310,12 +310,20 @@ function MCQFields({
     if (draft.options.length >= 6) return;
     setDraft({ ...draft, options: [...draft.options, ''] });
   };
+  const toggleCorrect = (i: number) => {
+    const answers = draft.answers.includes(i)
+      ? draft.answers.filter((a) => a !== i)
+      : [...draft.answers, i].sort((a, b) => a - b);
+    setDraft({ ...draft, answers });
+  };
   const removeOption = (i: number) => {
     if (draft.options.length <= 2) return;
     const options = draft.options.filter((_, idx) => idx !== i);
-    const answer =
-      draft.answer === i ? 0 : draft.answer > i ? draft.answer - 1 : draft.answer;
-    setDraft({ ...draft, options, answer });
+    // Drop the removed option from the correct set and shift later indices down.
+    const answers = draft.answers
+      .filter((a) => a !== i)
+      .map((a) => (a > i ? a - 1 : a));
+    setDraft({ ...draft, options, answers });
   };
 
   return (
@@ -337,16 +345,15 @@ function MCQFields({
 
       <div className="field">
         <span className="field-label">
-          Options <span className="muted">— select the correct one</span>
+          Options <span className="muted">— tick every correct answer</span>
         </span>
         <div className="option-rows">
           {draft.options.map((opt, i) => (
             <div className="option-row" key={i}>
               <input
-                type="radio"
-                name="mcq-answer"
-                checked={draft.answer === i}
-                onChange={() => setDraft({ ...draft, answer: i })}
+                type="checkbox"
+                checked={draft.answers.includes(i)}
+                onChange={() => toggleCorrect(i)}
                 aria-label={`Mark option ${i + 1} correct`}
               />
               <input
@@ -436,9 +443,9 @@ function Preview({ draft }: { draft: CardDraft }) {
             {draft.options.map(
               (opt, i) =>
                 opt.trim() && (
-                  <li key={i} className={draft.answer === i ? 'correct' : ''}>
+                  <li key={i} className={draft.answers.includes(i) ? 'correct' : ''}>
                     <RichText>{opt}</RichText>
-                    {draft.answer === i && <span className="muted small"> ✓</span>}
+                    {draft.answers.includes(i) && <span className="muted small"> ✓</span>}
                   </li>
                 ),
             )}
