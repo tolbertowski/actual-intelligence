@@ -464,6 +464,46 @@
   align-items: center;
   gap: 10px;
 }
+.set-tag {
+  margin-left: 8px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.new-set {
+  margin-top: 20px;
+}
+.new-set-btn {
+  color: var(--accent);
+}
+.new-set-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.new-set-form input[type='text'] {
+  flex: 1;
+  min-width: 180px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--canvas);
+  border: 0.5px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+.new-set p {
+  margin: 8px 0 0;
+}
+.delete-set-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+.meta-delete {
+  margin-right: auto;
+}
 .due-badge {
   font-size: 12px;
   font-weight: 550;

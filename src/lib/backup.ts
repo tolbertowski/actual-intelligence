@@ -1,5 +1,4 @@
 import type { AppSettings, Card, DeckMeta, ReviewRecord } from '../types';
-import { CHAPTER_IDS } from '../types';
 import {
   getAllCards,
   getAllDeckMeta,
@@ -75,12 +74,11 @@ export interface ImportResult {
   reviewsMerged: number;
 }
 
-const VALID_DECKS = new Set<string>(CHAPTER_IDS);
-
 function isCard(value: unknown): value is Card {
   if (!value || typeof value !== 'object') return false;
   const c = value as Record<string, unknown>;
-  if (typeof c.id !== 'string' || !VALID_DECKS.has(c.deck as string)) return false;
+  // Any non-empty deck id is valid — built-in chapter or a custom set.
+  if (typeof c.id !== 'string' || typeof c.deck !== 'string' || !c.deck) return false;
   if (c.kind === 'flashcard') return typeof c.front === 'string' && typeof c.back === 'string';
   if (c.kind === 'mcq')
     return (

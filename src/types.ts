@@ -25,8 +25,12 @@ export const CHAPTER_IDS = [
 
 export type ChapterId = (typeof CHAPTER_IDS)[number];
 
-/** A deck is keyed to exactly one chapter. */
-export type DeckId = ChapterId;
+/**
+ * A deck id is either a built-in `ChapterId` or a user-created custom set
+ * (`set:<uuid>`). Kept as `string` so custom sets are first-class; use
+ * `isChapterId` to distinguish built-ins.
+ */
+export type DeckId = string;
 
 /** Where a card came from — shipped quiz content vs. the user's own writing. */
 export type CardSource = 'shipped' | 'user';

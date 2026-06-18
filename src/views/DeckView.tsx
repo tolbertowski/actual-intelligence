@@ -4,12 +4,12 @@ import { loadDeck, type DeckContents } from '../lib/decks';
 import { removeCard } from '../lib/authoring';
 import { deckStats, type DeckStats } from '../lib/stats';
 import { loadDeckMeta, saveDeckMeta, type ResolvedDeck } from '../lib/decksMeta';
-import { deleteDeckMeta, getDeckMeta, isPersisted } from '../lib/db';
+import { deleteDeckCascade, deleteDeckMeta, getDeckMeta, isPersisted } from '../lib/db';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
 import { CardEditor } from '../components/CardEditor';
 import { StatGrid, MaturityBar } from '../components/Stats';
-import type { Card, CardKind, DeckId } from '../types';
+import type { Card, CardKind } from '../types';
 
 // One card row. Shipped cards show a "shipped" badge; the user's own cards get
 // edit/delete actions. Cards are grouped by kind (quiz vs flashcard), not source.
@@ -97,45 +97,52 @@ export function DeckView({ deckId }: { deckId: string }) {
   const [hasOverride, setHasOverride] = useState(false);
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaForm, setMetaForm] = useState({ title: '', description: '' });
+  const [metaLoaded, setMetaLoaded] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const valid = isChapterId(deckId);
   const chapter = valid ? getChapter(deckId) : undefined;
 
   const reloadMeta = useCallback(() => {
-    void loadDeckMeta(deckId).then((d) => d && setDeck(d));
+    void loadDeckMeta(deckId).then((d) => {
+      setDeck(d ?? null);
+      setMetaLoaded(true);
+    });
     void getDeckMeta(deckId).then((m) => setHasOverride(Boolean(m)));
   }, [deckId]);
 
   const reload = useCallback(() => {
-    if (!valid) return Promise.resolve();
-    void deckStats(deckId as DeckId).then(setStats);
+    void deckStats(deckId).then(setStats);
     reloadMeta();
-    return loadDeck(deckId as DeckId)
+    return loadDeck(deckId)
       .then((c) => setContents(c))
       .catch((e) => setError(String(e)));
-  }, [deckId, valid, reloadMeta]);
+  }, [deckId, reloadMeta]);
 
   useEffect(() => {
-    if (!valid) return;
     setContents(null);
     setError(null);
     setStats(null);
     setEditingMeta(false);
+    setConfirmingDelete(false);
+    setMetaLoaded(false);
+    setDeck(null);
     void reload();
     void isPersisted().then(setPersisted);
-  }, [valid, reload]);
+  }, [reload]);
 
   // Display through the resolver, falling back to chapter defaults pre-load.
   const title = deck?.title ?? chapter?.title ?? '';
   const description = deck?.description ?? chapter?.blurb ?? '';
   const notesPath = deck?.notesPath ?? chapter?.notesPath;
+  const isCustom = deck?.custom ?? false;
 
   const openMetaEditor = () => {
     setMetaForm({ title, description });
     setEditingMeta(true);
   };
   const saveMeta = async () => {
-    await saveDeckMeta(deckId, metaForm, deck?.custom ?? false);
+    await saveDeckMeta(deckId, metaForm, isCustom);
     setEditingMeta(false);
     reloadMeta();
   };
@@ -144,8 +151,14 @@ export function DeckView({ deckId }: { deckId: string }) {
     setEditingMeta(false);
     reloadMeta();
   };
+  const deleteSet = async () => {
+    await deleteDeckCascade(deckId);
+    navigate({ name: 'decks' });
+  };
 
-  if (!valid || !chapter) {
+  // A deck exists if it's a chapter or a resolved custom set. While meta loads
+  // we don't yet know about custom sets, so wait before declaring "not found".
+  if (metaLoaded && !valid && !deck) {
     return (
       <div className="page">
         <p>That deck doesn’t exist.</p>
@@ -197,10 +210,32 @@ export function DeckView({ deckId }: { deckId: string }) {
               />
             </label>
             <div className="deck-meta-actions">
+              {isCustom &&
+                (confirmingDelete ? (
+                  <span className="delete-set-confirm">
+                    <span className="muted small">Delete this set and its cards?</span>
+                    <button
+                      className="btn btn-ghost small"
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Keep
+                    </button>
+                    <button className="btn small danger" onClick={() => void deleteSet()}>
+                      Delete set
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    className="btn btn-ghost danger meta-delete"
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    Delete set
+                  </button>
+                ))}
               <button className="btn btn-ghost" onClick={() => setEditingMeta(false)}>
                 Cancel
               </button>
-              {!deck?.custom && hasOverride && (
+              {!isCustom && hasOverride && (
                 <button className="btn btn-ghost" onClick={() => void resetMeta()}>
                   Reset to default
                 </button>
@@ -364,7 +399,8 @@ export function DeckView({ deckId }: { deckId: string }) {
 
       {editor.open && (
         <CardEditor
-          deck={deckId as DeckId}
+          deck={deckId}
+          deckTitle={title}
           card={editor.card}
           initialKind={editor.kind}
           onClose={closeEditor}

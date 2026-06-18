@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CHAPTERS } from '../data/chapters';
 import { countCardsByDeck } from '../lib/db';
 import { countShipped, hasShippedContent } from '../lib/decks';
-import { listDecks, type ResolvedDeck } from '../lib/decksMeta';
+import { listDecks, saveDeckMeta, type ResolvedDeck } from '../lib/decksMeta';
 import { studyCountsByDeck, type StudyCount } from '../lib/review';
 import { navigate } from '../hooks/useHashRoute';
 import type { DeckId } from '../types';
@@ -54,6 +54,8 @@ function countLabel(s: DeckSummary | undefined): string {
 export function DeckList() {
   const summaries = useDeckSummaries();
   const [decks, setDecks] = useState<ResolvedDeck[] | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +66,24 @@ export function DeckList() {
   }, []);
 
   const open = (id: string) => navigate({ name: 'deck', deckId: id });
-  const rows = decks ?? CHAPTERS.map((c) => ({ ...c, description: c.blurb }));
+  const rows: ResolvedDeck[] =
+    decks ??
+    CHAPTERS.map((c) => ({
+      id: c.id,
+      title: c.title,
+      description: c.blurb,
+      custom: false,
+      isChapter: true,
+      notesPath: c.notesPath,
+    }));
+
+  const createSet = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    const id = `set:${crypto.randomUUID()}`;
+    await saveDeckMeta(id, { title: name, description: '' }, true);
+    navigate({ name: 'deck', deckId: id });
+  };
   const totalDue = summaries
     ? Object.values(summaries).reduce((sum, s) => sum + s.due, 0)
     : 0;
@@ -115,7 +134,10 @@ export function DeckList() {
                 aria-label={`Open ${deck.title}`}
               >
                 <span className="deck-row-main">
-                  <span className="deck-row-title">{deck.title}</span>
+                  <span className="deck-row-title">
+                    {deck.title}
+                    {deck.custom && <span className="tag set-tag">set</span>}
+                  </span>
                   <span className="deck-row-blurb muted">{deck.description}</span>
                 </span>
                 <span className="deck-row-meta">
@@ -129,6 +151,41 @@ export function DeckList() {
           );
         })}
       </ul>
+
+      <div className="new-set">
+        {creating ? (
+          <div className="new-set-form">
+            <input
+              type="text"
+              value={newName}
+              autoFocus
+              placeholder="Name your set"
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void createSet();
+                if (e.key === 'Escape') setCreating(false);
+              }}
+            />
+            <button
+              className="btn btn-primary small"
+              onClick={() => void createSet()}
+              disabled={!newName.trim()}
+            >
+              Create set
+            </button>
+            <button className="btn btn-ghost small" onClick={() => setCreating(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button className="btn btn-ghost new-set-btn" onClick={() => setCreating(true)}>
+            + New set
+          </button>
+        )}
+        <p className="muted small">
+          A set is your own deck — for cards that don’t fit a chapter.
+        </p>
+      </div>
     </div>
   );
 }

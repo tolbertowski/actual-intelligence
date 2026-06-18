@@ -10,7 +10,7 @@ import {
   updateCard,
   validateDraft,
 } from '../lib/authoring';
-import { getChapter } from '../data/chapters';
+import { getChapter, isChapterId } from '../data/chapters';
 import { RichText } from './RichText';
 
 // Modal editor for a user card. The card is the hero: a wide writing surface,
@@ -21,6 +21,8 @@ import { RichText } from './RichText';
 
 interface CardEditorProps {
   deck: DeckId;
+  /** Resolved deck title for the header (falls back to chapter/id). */
+  deckTitle?: string;
   /** When present, we're editing; otherwise creating. */
   card?: Card;
   /** Kind to start a new card with (ignored when editing). */
@@ -36,6 +38,7 @@ function errorFor(errors: DraftError[], field: string): string | undefined {
 
 export function CardEditor({
   deck,
+  deckTitle,
   card,
   initialKind = 'flashcard',
   onClose,
@@ -54,7 +57,8 @@ export function CardEditor({
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
 
-  const chapterTitle = getChapter(deck)?.title ?? deck;
+  const chapterTitle =
+    deckTitle ?? (isChapterId(deck) ? getChapter(deck)?.title : undefined) ?? deck;
 
   // Compose the draft with its parsed tags at save time.
   const withTags = useCallback(
