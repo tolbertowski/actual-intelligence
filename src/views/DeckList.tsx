@@ -65,6 +65,9 @@ export function DeckList() {
 
   const open = (id: string) => navigate({ name: 'deck', deckId: id });
   const rows = decks ?? CHAPTERS.map((c) => ({ ...c, description: c.blurb }));
+  const totalDue = summaries
+    ? Object.values(summaries).reduce((sum, s) => sum + s.due, 0)
+    : 0;
 
   return (
     <div className="page">
@@ -74,6 +77,30 @@ export function DeckList() {
           A deck per chapter of the COMP90054 notes. Quiz questions ship with the
           app; the flashcards you write are yours, and live on this device.
         </p>
+      </div>
+
+      <div className="revise-all">
+        <div>
+          <span className="revise-all-title">Revise everything</span>
+          <p className="muted small">
+            {totalDue > 0
+              ? `${totalDue} due across all decks`
+              : 'Review, practise, or quiz across every deck at once.'}
+          </p>
+        </div>
+        <div className="revise-all-actions">
+          {totalDue > 0 && (
+            <button className="btn btn-primary small" onClick={() => navigate({ name: 'review' })}>
+              Review all
+            </button>
+          )}
+          <button className="btn small" onClick={() => navigate({ name: 'practice' })}>
+            Practice all
+          </button>
+          <button className="btn small" onClick={() => navigate({ name: 'quiz' })}>
+            Quiz all
+          </button>
+        </div>
       </div>
 
       <ul className="deck-list" role="list">

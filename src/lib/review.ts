@@ -27,22 +27,21 @@ export interface QueueItem {
   isNew: boolean;
 }
 
-/**
- * The ordered queue for a deck: cards due today (soonest first), then new
- * cards. Reviews that aren't due yet are excluded.
- */
-export async function loadReviewQueue(deck: DeckId): Promise<QueueItem[]> {
-  const [shipped, userCards, reviews] = await Promise.all([
-    loadShippedDeck(deck),
-    getAllCards(),
-    getReviewsByDeck(deck),
-  ]);
-  const flashcards = [...shipped, ...userCards.filter((c) => c.deck === deck)].filter(
-    isReviewable,
-  );
-  const byCard = new Map(reviews.map((r) => [r.cardId, r]));
-  const cutoff = endOfToday();
+function shuffled<T>(input: readonly T[]): T[] {
+  const a = input.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
+/** Build a review queue from a card list: due today (soonest first), then new. */
+function buildReviewQueue(
+  flashcards: Flashcard[],
+  byCard: Map<string, ReviewRecord>,
+): QueueItem[] {
+  const cutoff = endOfToday();
   const due: { item: QueueItem; due: number }[] = [];
   const fresh: QueueItem[] = [];
   for (const card of flashcards) {
@@ -57,13 +56,41 @@ export async function loadReviewQueue(deck: DeckId): Promise<QueueItem[]> {
   return [...due.map((d) => d.item), ...fresh];
 }
 
-function shuffled<T>(input: readonly T[]): T[] {
-  const a = input.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+function buildPracticeQueue(
+  flashcards: Flashcard[],
+  byCard: Map<string, ReviewRecord>,
+): QueueItem[] {
+  return shuffled(flashcards).map((card) => {
+    const r = byCard.get(card.id);
+    return { card, prior: r, isNew: !r };
+  });
+}
+
+/** Reviewable flashcards for one deck (shipped + user). */
+async function deckFlashcards(deck: DeckId): Promise<Flashcard[]> {
+  const [shipped, userCards] = await Promise.all([loadShippedDeck(deck), getAllCards()]);
+  return [...shipped, ...userCards.filter((c) => c.deck === deck)].filter(isReviewable);
+}
+
+/** Reviewable flashcards across every deck (all shipped chapters + user cards). */
+async function allFlashcards(): Promise<Flashcard[]> {
+  const [shippedByDeck, userCards] = await Promise.all([
+    Promise.all(CHAPTERS.map((c) => loadShippedDeck(c.id))),
+    getAllCards(),
+  ]);
+  return [...shippedByDeck.flat(), ...userCards].filter(isReviewable);
+}
+
+/**
+ * The ordered queue for a deck: cards due today (soonest first), then new
+ * cards. Reviews that aren't due yet are excluded.
+ */
+export async function loadReviewQueue(deck: DeckId): Promise<QueueItem[]> {
+  const [flashcards, reviews] = await Promise.all([
+    deckFlashcards(deck),
+    getReviewsByDeck(deck),
+  ]);
+  return buildReviewQueue(flashcards, new Map(reviews.map((r) => [r.cardId, r])));
 }
 
 /**
@@ -72,19 +99,23 @@ function shuffled<T>(input: readonly T[]): T[] {
  * persisted (see ReviewSession), so the SM-2 schedule is left untouched.
  */
 export async function loadPracticeQueue(deck: DeckId): Promise<QueueItem[]> {
-  const [shipped, userCards, reviews] = await Promise.all([
-    loadShippedDeck(deck),
-    getAllCards(),
+  const [flashcards, reviews] = await Promise.all([
+    deckFlashcards(deck),
     getReviewsByDeck(deck),
   ]);
-  const flashcards = [...shipped, ...userCards.filter((c) => c.deck === deck)].filter(
-    isReviewable,
-  );
-  const byCard = new Map(reviews.map((r) => [r.cardId, r]));
-  return shuffled(flashcards).map((card) => {
-    const r = byCard.get(card.id);
-    return { card, prior: r, isNew: !r };
-  });
+  return buildPracticeQueue(flashcards, new Map(reviews.map((r) => [r.cardId, r])));
+}
+
+/** Global review queue across every deck (same due/new ordering). */
+export async function loadAllReviewQueue(): Promise<QueueItem[]> {
+  const [flashcards, reviews] = await Promise.all([allFlashcards(), getAllReviews()]);
+  return buildReviewQueue(flashcards, new Map(reviews.map((r) => [r.cardId, r])));
+}
+
+/** Global practice queue across every deck (shuffled, no scheduling). */
+export async function loadAllPracticeQueue(): Promise<QueueItem[]> {
+  const [flashcards, reviews] = await Promise.all([allFlashcards(), getAllReviews()]);
+  return buildPracticeQueue(flashcards, new Map(reviews.map((r) => [r.cardId, r])));
 }
 
 /** Apply a grade to a card and persist the new review record. */

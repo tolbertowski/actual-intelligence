@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getChapter, isChapterId } from '../data/chapters';
-import { loadQuizQueue, type QuizItem } from '../lib/quiz';
+import { isChapterId } from '../data/chapters';
+import { loadDeckMeta } from '../lib/decksMeta';
+import { loadAllQuizQueue, loadQuizQueue, type QuizItem } from '../lib/quiz';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
 import type { DeckId } from '../types';
 
 type Phase = 'loading' | 'quizzing' | 'done' | 'invalid';
 
-export function QuizSession({ deckId }: { deckId: string }) {
-  const valid = isChapterId(deckId);
-  const chapter = valid ? getChapter(deckId) : undefined;
+export function QuizSession({ deckId }: { deckId?: string }) {
+  const global = deckId === undefined;
+  const valid = global || isChapterId(deckId);
 
   const [queue, setQueue] = useState<QuizItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -17,6 +18,15 @@ export function QuizSession({ deckId }: { deckId: string }) {
   const [answered, setAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
+  const [scopeTitle, setScopeTitle] = useState(global ? 'All decks' : '');
+
+  useEffect(() => {
+    if (deckId) void loadDeckMeta(deckId).then((d) => d && setScopeTitle(d.title));
+    else setScopeTitle('All decks');
+  }, [deckId]);
+
+  const loadQueue = () =>
+    deckId ? loadQuizQueue(deckId as DeckId) : loadAllQuizQueue();
 
   const start = useCallback(() => {
     if (!valid) {
@@ -24,7 +34,7 @@ export function QuizSession({ deckId }: { deckId: string }) {
       return;
     }
     setPhase('loading');
-    loadQuizQueue(deckId as DeckId).then((q) => {
+    loadQueue().then((q) => {
       setQueue(q);
       setIndex(0);
       setSelected([]);
@@ -32,6 +42,7 @@ export function QuizSession({ deckId }: { deckId: string }) {
       setScore(0);
       setPhase(q.length === 0 ? 'done' : 'quizzing');
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId, valid]);
 
   useEffect(() => {
@@ -40,7 +51,7 @@ export function QuizSession({ deckId }: { deckId: string }) {
       setPhase('invalid');
       return;
     }
-    loadQuizQueue(deckId as DeckId).then((q) => {
+    loadQueue().then((q) => {
       if (cancelled) return;
       setQueue(q);
       setPhase(q.length === 0 ? 'done' : 'quizzing');
@@ -48,6 +59,7 @@ export function QuizSession({ deckId }: { deckId: string }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId, valid]);
 
   const current = queue[index];
@@ -122,7 +134,7 @@ export function QuizSession({ deckId }: { deckId: string }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [phase, answered, current, choose, next, finalize, selected]);
 
-  if (phase === 'invalid' || !chapter) {
+  if (phase === 'invalid') {
     return (
       <div className="page">
         <p>That deck doesn’t exist.</p>
@@ -133,7 +145,9 @@ export function QuizSession({ deckId }: { deckId: string }) {
     );
   }
 
-  const backToDeck = () => navigate({ name: 'deck', deckId });
+  const goBack = () =>
+    navigate(deckId ? { name: 'deck', deckId } : { name: 'decks' });
+  const backLabel = global ? 'Decks' : scopeTitle;
 
   if (phase === 'loading') {
     return (
@@ -148,15 +162,17 @@ export function QuizSession({ deckId }: { deckId: string }) {
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
     return (
       <div className="page review-done">
-        <button className="btn-ghost back-link" onClick={backToDeck}>
-          ← {chapter.title}
+        <button className="btn-ghost back-link" onClick={goBack}>
+          ← {backLabel}
         </button>
         <div className="review-done-body">
           <h1>{total > 0 ? `You scored ${score} / ${total}` : 'No quiz questions'}</h1>
           <p className="muted">
             {total > 0
               ? `${pct}% on this run. The explanations are where the learning is — worth another pass.`
-              : 'This chapter has no multiple-choice questions yet.'}
+              : global
+                ? 'There are no multiple-choice questions yet.'
+                : 'This chapter has no multiple-choice questions yet.'}
           </p>
           <div className="quiz-done-actions">
             {total > 0 && (
@@ -164,8 +180,8 @@ export function QuizSession({ deckId }: { deckId: string }) {
                 Try again
               </button>
             )}
-            <button className="btn" onClick={backToDeck}>
-              Back to {chapter.title.toLowerCase()}
+            <button className="btn" onClick={goBack}>
+              {global ? 'Back to decks' : `Back to ${scopeTitle.toLowerCase()}`}
             </button>
           </div>
         </div>
@@ -188,8 +204,8 @@ export function QuizSession({ deckId }: { deckId: string }) {
   return (
     <div className="page quiz-page">
       <div className="review-top">
-        <button className="btn-ghost back-link" onClick={backToDeck}>
-          ← {chapter.title}
+        <button className="btn-ghost back-link" onClick={goBack}>
+          ← {backLabel}
         </button>
         <span className="muted small">
           {index + 1} of {total} · {score} right

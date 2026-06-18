@@ -7,27 +7,33 @@ import { useEffect, useState } from 'react';
 //   #/                       deck list
 //   #/progress                collection-wide progress / stats
 //   #/deck/:deckId            a single deck
-//   #/deck/:deckId/review     a review session for that deck
-//   #/deck/:deckId/practice   drill all of a deck's flashcards (no scheduling)
-//   #/deck/:deckId/quiz       a quiz run over that deck's MCQs
+//   #/review · #/practice · #/quiz            across every deck
+//   #/deck/:deckId/review · …/practice · …/quiz   scoped to one deck
+
+type Session = { name: 'review' | 'practice' | 'quiz'; deckId?: string };
 
 export type Route =
   | { name: 'decks' }
   | { name: 'progress' }
   | { name: 'deck'; deckId: string }
-  | { name: 'review'; deckId: string }
-  | { name: 'practice'; deckId: string }
-  | { name: 'quiz'; deckId: string };
+  | Session;
+
+const SESSIONS = ['review', 'practice', 'quiz'] as const;
+type SessionName = (typeof SESSIONS)[number];
+
+function isSession(s: string): s is SessionName {
+  return (SESSIONS as readonly string[]).includes(s);
+}
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/';
   const parts = path.split('/').filter(Boolean); // ['deck', 'mdps', 'review']
   if (parts[0] === 'progress') return { name: 'progress' };
+  // Global session: #/review, #/practice, #/quiz
+  if (parts.length === 1 && isSession(parts[0])) return { name: parts[0] };
   if (parts[0] === 'deck' && parts[1]) {
     const deckId = decodeURIComponent(parts[1]);
-    if (parts[2] === 'review') return { name: 'review', deckId };
-    if (parts[2] === 'practice') return { name: 'practice', deckId };
-    if (parts[2] === 'quiz') return { name: 'quiz', deckId };
+    if (parts[2] && isSession(parts[2])) return { name: parts[2], deckId };
     return { name: 'deck', deckId };
   }
   return { name: 'decks' };
@@ -37,12 +43,11 @@ export function navigate(route: Route): void {
   let hash = '#/';
   if (route.name === 'progress') hash = '#/progress';
   else if (route.name === 'deck') hash = `#/deck/${encodeURIComponent(route.deckId)}`;
-  else if (route.name === 'review')
-    hash = `#/deck/${encodeURIComponent(route.deckId)}/review`;
-  else if (route.name === 'practice')
-    hash = `#/deck/${encodeURIComponent(route.deckId)}/practice`;
-  else if (route.name === 'quiz')
-    hash = `#/deck/${encodeURIComponent(route.deckId)}/quiz`;
+  else if (route.name === 'review' || route.name === 'practice' || route.name === 'quiz') {
+    hash = route.deckId
+      ? `#/deck/${encodeURIComponent(route.deckId)}/${route.name}`
+      : `#/${route.name}`;
+  }
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 

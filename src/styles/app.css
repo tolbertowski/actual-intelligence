@@ -44,6 +44,31 @@
   margin: 0;
 }
 
+.revise-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  margin-bottom: 28px;
+  background: var(--surface);
+  border: 0.5px solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.revise-all-title {
+  font-weight: 600;
+}
+.revise-all p {
+  margin: 2px 0 0;
+}
+.revise-all-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .deck-list {
   list-style: none;
   margin: 0;

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getChapter, isChapterId } from '../data/chapters';
+import { isChapterId } from '../data/chapters';
+import { loadDeckMeta } from '../lib/decksMeta';
 import {
   type QueueItem,
   gradeCard,
+  loadAllPracticeQueue,
+  loadAllReviewQueue,
   loadPracticeQueue,
   loadReviewQueue,
 } from '../lib/review';
@@ -20,11 +23,12 @@ export function ReviewSession({
   deckId,
   mode = 'due',
 }: {
-  deckId: string;
+  /** Undefined = a global session across every deck. */
+  deckId?: string;
   mode?: ReviewMode;
 }) {
-  const valid = isChapterId(deckId);
-  const chapter = valid ? getChapter(deckId) : undefined;
+  const global = deckId === undefined;
+  const valid = global || isChapterId(deckId);
   const practice = mode === 'practice';
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -32,6 +36,12 @@ export function ReviewSession({
   const [flipped, setFlipped] = useState(false);
   const [phase, setPhase] = useState<Phase>('loading');
   const [reviewed, setReviewed] = useState(0);
+  const [scopeTitle, setScopeTitle] = useState(global ? 'All decks' : '');
+
+  useEffect(() => {
+    if (deckId) void loadDeckMeta(deckId).then((d) => d && setScopeTitle(d.title));
+    else setScopeTitle('All decks');
+  }, [deckId]);
 
   useEffect(() => {
     if (!valid) {
@@ -39,8 +49,14 @@ export function ReviewSession({
       return;
     }
     let cancelled = false;
-    const loader = practice ? loadPracticeQueue : loadReviewQueue;
-    loader(deckId as DeckId).then((q) => {
+    const load = practice
+      ? deckId
+        ? loadPracticeQueue(deckId as DeckId)
+        : loadAllPracticeQueue()
+      : deckId
+        ? loadReviewQueue(deckId as DeckId)
+        : loadAllReviewQueue();
+    load.then((q) => {
       if (cancelled) return;
       setQueue(q);
       setPhase(q.length === 0 ? 'done' : 'reviewing');
@@ -91,7 +107,7 @@ export function ReviewSession({
     return () => window.removeEventListener('keydown', onKey);
   }, [phase, flipped, grade]);
 
-  if (phase === 'invalid' || !chapter) {
+  if (phase === 'invalid') {
     return (
       <div className="page">
         <p>That deck doesn’t exist.</p>
@@ -102,7 +118,9 @@ export function ReviewSession({
     );
   }
 
-  const backToDeck = () => navigate({ name: 'deck', deckId });
+  const goBack = () =>
+    navigate(deckId ? { name: 'deck', deckId } : { name: 'decks' });
+  const backLabel = global ? 'Decks' : scopeTitle;
 
   if (phase === 'loading') {
     return (
@@ -115,8 +133,8 @@ export function ReviewSession({
   if (phase === 'done') {
     return (
       <div className="page review-done">
-        <button className="btn-ghost back-link" onClick={backToDeck}>
-          ← {chapter.title}
+        <button className="btn-ghost back-link" onClick={goBack}>
+          ← {backLabel}
         </button>
         <div className="review-done-body">
           <h1>
@@ -129,14 +147,16 @@ export function ReviewSession({
           <p className="muted">
             {reviewed === 0
               ? practice
-                ? 'This deck has no flashcards to practise. Write a few first.'
-                : 'No cards are due in this deck today. Write a few, or check back tomorrow.'
+                ? 'There are no flashcards to practise yet. Write a few first.'
+                : global
+                  ? 'Nothing is due anywhere today. Come back tomorrow, or practise instead.'
+                  : 'No cards are due in this deck today. Write a few, or check back tomorrow.'
               : practice
                 ? `You practised ${reviewed} card${reviewed === 1 ? '' : 's'}. Your review schedule wasn’t affected.`
                 : `You reviewed ${reviewed} card${reviewed === 1 ? '' : 's'}. Come back when more are due.`}
           </p>
-          <button className="btn" onClick={backToDeck}>
-            Back to {chapter.title.toLowerCase()}
+          <button className="btn" onClick={goBack}>
+            {global ? 'Back to decks' : `Back to ${scopeTitle.toLowerCase()}`}
           </button>
         </div>
       </div>
@@ -159,8 +179,8 @@ export function ReviewSession({
   return (
     <div className="page review-page">
       <div className="review-top">
-        <button className="btn-ghost back-link" onClick={backToDeck}>
-          ← {chapter.title}
+        <button className="btn-ghost back-link" onClick={goBack}>
+          ← {backLabel}
         </button>
         <span className="muted small">
           {practice && <span className="tag">practice</span>}{' '}

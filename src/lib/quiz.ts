@@ -1,5 +1,7 @@
 import type { DeckId, MCQCard } from '../types';
-import { loadDeck } from './decks';
+import { loadDeck, loadShippedDeck } from './decks';
+import { getAllCards } from './db';
+import { CHAPTERS } from '../data/chapters';
 
 // Builds a quiz run over a deck's multiple-choice cards (shipped + user). The
 // quiz is ephemeral — immediate feedback with the explanation always shown, no
@@ -36,11 +38,24 @@ function toItem(card: MCQCard): QuizItem {
   return { card, options, multi: correct.size > 1 };
 }
 
+const isQuizzable = (c: { kind: string; status: string }): boolean =>
+  c.kind === 'mcq' && c.status !== 'suspended';
+
 /** Build a fresh, shuffled quiz queue for a deck (questions and options). */
 export async function loadQuizQueue(deck: DeckId): Promise<QuizItem[]> {
   const contents = await loadDeck(deck);
-  const mcqs = contents.all.filter(
-    (c): c is MCQCard => c.kind === 'mcq' && c.status !== 'suspended',
+  const mcqs = contents.all.filter((c): c is MCQCard => isQuizzable(c));
+  return shuffled(mcqs).map(toItem);
+}
+
+/** Build a quiz over every multiple-choice question across all decks. */
+export async function loadAllQuizQueue(): Promise<QuizItem[]> {
+  const [shippedByDeck, userCards] = await Promise.all([
+    Promise.all(CHAPTERS.map((c) => loadShippedDeck(c.id))),
+    getAllCards(),
+  ]);
+  const mcqs = [...shippedByDeck.flat(), ...userCards].filter(
+    (c): c is MCQCard => isQuizzable(c),
   );
   return shuffled(mcqs).map(toItem);
 }
