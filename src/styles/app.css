@@ -103,9 +103,18 @@
 .deck-header {
   margin-bottom: 32px;
 }
+.deck-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
 .deck-header h1 {
   font-size: 26px;
   margin-bottom: 6px;
+}
+.deck-header-top .btn {
+  flex-shrink: 0;
 }
 .deck-header p {
   margin: 0 0 10px;

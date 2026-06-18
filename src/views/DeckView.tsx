@@ -10,32 +10,9 @@ import { CardEditor } from '../components/CardEditor';
 import { StatGrid, MaturityBar } from '../components/Stats';
 import type { Card, CardKind, DeckId } from '../types';
 
-function ShippedCardPreview({ card }: { card: Card }) {
-  return (
-    <li className="card-preview">
-      <div className="card-preview-kind muted">
-        {card.kind === 'mcq' ? 'quiz' : 'flashcard'}
-        <span className="tag">shipped</span>
-      </div>
-      <div className="card-preview-body">
-        <RichText serif>
-          {card.kind === 'mcq' ? card.question : card.front}
-        </RichText>
-      </div>
-      {card.tags.length > 0 && (
-        <div className="card-preview-tags">
-          {card.tags.map((t) => (
-            <span key={t} className="tag">
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-    </li>
-  );
-}
-
-function UserCardRow({
+// One card row. Shipped cards show a "shipped" badge; the user's own cards get
+// edit/delete actions. Cards are grouped by kind (quiz vs flashcard), not source.
+function CardRow({
   card,
   onEdit,
   onDeleted,
@@ -45,6 +22,7 @@ function UserCardRow({
   onDeleted: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const isUser = card.source === 'user';
 
   const del = async () => {
     await removeCard(card.id);
@@ -52,9 +30,10 @@ function UserCardRow({
   };
 
   return (
-    <li className="card-preview user-card">
+    <li className={`card-preview${isUser ? ' user-card' : ''}`}>
       <div className="card-preview-kind muted">
         {card.kind === 'mcq' ? 'quiz' : 'flashcard'}
+        {card.source === 'shipped' && <span className="tag">shipped</span>}
       </div>
       <div className="card-preview-body">
         <RichText serif>
@@ -70,31 +49,33 @@ function UserCardRow({
           ))}
         </div>
       )}
-      <div className="user-card-actions">
-        {confirming ? (
-          <>
-            <span className="muted small">Delete this card?</span>
-            <button className="btn btn-ghost small" onClick={() => setConfirming(false)}>
-              Keep
-            </button>
-            <button className="btn small danger" onClick={() => void del()}>
-              Delete
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="btn btn-ghost small" onClick={() => onEdit(card)}>
-              Edit
-            </button>
-            <button
-              className="btn btn-ghost small"
-              onClick={() => setConfirming(true)}
-            >
-              Delete
-            </button>
-          </>
-        )}
-      </div>
+      {isUser && (
+        <div className="user-card-actions">
+          {confirming ? (
+            <>
+              <span className="muted small">Delete this card?</span>
+              <button className="btn btn-ghost small" onClick={() => setConfirming(false)}>
+                Keep
+              </button>
+              <button className="btn small danger" onClick={() => void del()}>
+                Delete
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-ghost small" onClick={() => onEdit(card)}>
+                Edit
+              </button>
+              <button
+                className="btn btn-ghost small"
+                onClick={() => setConfirming(true)}
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </li>
   );
 }
@@ -148,6 +129,10 @@ export function DeckView({ deckId }: { deckId: string }) {
     setEditor({ open: true, card, kind: card.kind });
   const closeEditor = () => setEditor((e) => ({ ...e, open: false, card: undefined }));
 
+  // Group by card kind (not source): quiz questions vs flashcards.
+  const mcqs = contents ? contents.all.filter((c) => c.kind === 'mcq') : [];
+  const flashcards = contents ? contents.all.filter((c) => c.kind === 'flashcard') : [];
+
   return (
     <div className="page">
       <button
@@ -158,7 +143,12 @@ export function DeckView({ deckId }: { deckId: string }) {
       </button>
 
       <div className="deck-header">
-        <h1>{chapter.title}</h1>
+        <div className="deck-header-top">
+          <h1>{chapter.title}</h1>
+          <button className="btn btn-primary" onClick={() => openNew('flashcard')}>
+            Write a card
+          </button>
+        </div>
         <p className="muted">{chapter.blurb}</p>
         <a
           className="notes-link"
@@ -223,10 +213,35 @@ export function DeckView({ deckId }: { deckId: string }) {
         <>
           <section className="deck-section">
             <div className="deck-section-head">
+              <h2>Flashcards</h2>
+              <span className="muted">{flashcards.length}</span>
+            </div>
+            <hr className="hairline" />
+            {flashcards.length === 0 ? (
+              <div className="deck-section-empty">
+                <p>
+                  No flashcards here yet. The cards you write are the studying —
+                  start one and it’s saved to this device.
+                </p>
+                <button className="btn" onClick={() => openNew('flashcard')}>
+                  Write your first card
+                </button>
+              </div>
+            ) : (
+              <ul className="card-preview-list" role="list">
+                {flashcards.map((c) => (
+                  <CardRow key={c.id} card={c} onEdit={openEdit} onDeleted={reload} />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="deck-section">
+            <div className="deck-section-head">
               <h2>Quiz questions</h2>
               <div className="deck-section-head-actions">
-                <span className="muted">{contents.shipped.length}</span>
-                {contents.all.some((c) => c.kind === 'mcq') && (
+                <span className="muted">{mcqs.length}</span>
+                {mcqs.length > 0 && (
                   <button
                     className="btn btn-primary small"
                     onClick={() => navigate({ name: 'quiz', deckId })}
@@ -237,70 +252,35 @@ export function DeckView({ deckId }: { deckId: string }) {
               </div>
             </div>
             <hr className="hairline" />
-            {contents.shipped.length === 0 ? (
+            {mcqs.length === 0 ? (
               <p className="muted deck-section-empty">
-                No quiz questions for this chapter yet. The flashcards you write
-                below are the studying.
+                No quiz questions here yet. Use “Write a card” and choose Quiz to
+                add one.
               </p>
             ) : (
               <ul className="card-preview-list" role="list">
-                {contents.shipped.map((c) => (
-                  <ShippedCardPreview key={c.id} card={c} />
+                {mcqs.map((c) => (
+                  <CardRow key={c.id} card={c} onEdit={openEdit} onDeleted={reload} />
                 ))}
               </ul>
             )}
           </section>
 
-          <section className="deck-section">
-            <div className="deck-section-head">
-              <h2>Your flashcards</h2>
-              <div className="deck-section-head-actions">
-                <span className="muted">{contents.user.length}</span>
-                <button className="btn btn-primary small" onClick={() => openNew('flashcard')}>
-                  Write a card
-                </button>
-              </div>
-            </div>
-            <hr className="hairline" />
-            {contents.user.length === 0 ? (
-              <div className="deck-section-empty">
-                <p>
-                  Nothing here yet. The cards you write are the studying — start
-                  one and it’s saved to this device.
-                </p>
-                <button className="btn" onClick={() => openNew('flashcard')}>
-                  Write your first card
-                </button>
-              </div>
-            ) : (
-              <ul className="card-preview-list" role="list">
-                {contents.user.map((c) => (
-                  <UserCardRow
-                    key={c.id}
-                    card={c}
-                    onEdit={openEdit}
-                    onDeleted={reload}
-                  />
-                ))}
-              </ul>
-            )}
-
-            <p className="storage-note muted small">
-              {persisted
-                ? 'Your cards live on this device, on purpose. '
-                : 'Your cards live on this device, on purpose — this storage can be cleared by the browser, so '}
-              <a
-                href="#/progress"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate({ name: 'progress' });
-                }}
-              >
-                export is the backup
-              </a>
-              .
-            </p>
-          </section>
+          <p className="storage-note muted small">
+            {persisted
+              ? 'Your cards live on this device, on purpose. '
+              : 'Your cards live on this device, on purpose — this storage can be cleared by the browser, so '}
+            <a
+              href="#/progress"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate({ name: 'progress' });
+              }}
+            >
+              export is the backup
+            </a>
+            .
+          </p>
         </>
       )}
 
