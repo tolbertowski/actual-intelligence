@@ -116,6 +116,23 @@
 .deck-header-top .btn {
   flex-shrink: 0;
 }
+.deck-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.deck-meta-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.deck-meta-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
 .deck-header p {
   margin: 0 0 10px;
 }

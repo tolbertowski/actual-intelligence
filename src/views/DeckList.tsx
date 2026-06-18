@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { CHAPTERS } from '../data/chapters';
 import { countCardsByDeck } from '../lib/db';
 import { countShipped, hasShippedContent } from '../lib/decks';
+import { listDecks, type ResolvedDeck } from '../lib/decksMeta';
 import { studyCountsByDeck, type StudyCount } from '../lib/review';
 import { navigate } from '../hooks/useHashRoute';
-import type { ChapterId } from '../types';
+import type { DeckId } from '../types';
 
 interface DeckSummary {
   shipped: number;
@@ -52,8 +53,18 @@ function countLabel(s: DeckSummary | undefined): string {
 
 export function DeckList() {
   const summaries = useDeckSummaries();
+  const [decks, setDecks] = useState<ResolvedDeck[] | null>(null);
 
-  const open = (id: ChapterId) => navigate({ name: 'deck', deckId: id });
+  useEffect(() => {
+    let cancelled = false;
+    void listDecks().then((d) => !cancelled && setDecks(d));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const open = (id: string) => navigate({ name: 'deck', deckId: id });
+  const rows = decks ?? CHAPTERS.map((c) => ({ ...c, description: c.blurb }));
 
   return (
     <div className="page">
@@ -66,19 +77,19 @@ export function DeckList() {
       </div>
 
       <ul className="deck-list" role="list">
-        {CHAPTERS.map((chapter) => {
-          const s = summaries?.[chapter.id];
-          const empty = summaries && !hasShippedContent(chapter.id) && !s?.user;
+        {rows.map((deck) => {
+          const s = summaries?.[deck.id];
+          const empty = summaries && !hasShippedContent(deck.id as DeckId) && !s?.user;
           return (
-            <li key={chapter.id}>
+            <li key={deck.id}>
               <button
                 className="deck-row"
-                onClick={() => open(chapter.id)}
-                aria-label={`Open ${chapter.title}`}
+                onClick={() => open(deck.id)}
+                aria-label={`Open ${deck.title}`}
               >
                 <span className="deck-row-main">
-                  <span className="deck-row-title">{chapter.title}</span>
-                  <span className="deck-row-blurb muted">{chapter.blurb}</span>
+                  <span className="deck-row-title">{deck.title}</span>
+                  <span className="deck-row-blurb muted">{deck.description}</span>
                 </span>
                 <span className="deck-row-meta">
                   {s && s.due > 0 && <span className="due-badge">{s.due} due</span>}

@@ -3,7 +3,8 @@ import { getChapter, isChapterId } from '../data/chapters';
 import { loadDeck, type DeckContents } from '../lib/decks';
 import { removeCard } from '../lib/authoring';
 import { deckStats, type DeckStats } from '../lib/stats';
-import { isPersisted } from '../lib/db';
+import { loadDeckMeta, saveDeckMeta, type ResolvedDeck } from '../lib/decksMeta';
+import { deleteDeckMeta, getDeckMeta, isPersisted } from '../lib/db';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
 import { CardEditor } from '../components/CardEditor';
@@ -92,26 +93,57 @@ export function DeckView({ deckId }: { deckId: string }) {
   const [editor, setEditor] = useState<EditorState>({ open: false, kind: 'flashcard' });
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [stats, setStats] = useState<DeckStats | null>(null);
+  const [deck, setDeck] = useState<ResolvedDeck | null>(null);
+  const [hasOverride, setHasOverride] = useState(false);
+  const [editingMeta, setEditingMeta] = useState(false);
+  const [metaForm, setMetaForm] = useState({ title: '', description: '' });
 
   const valid = isChapterId(deckId);
   const chapter = valid ? getChapter(deckId) : undefined;
 
+  const reloadMeta = useCallback(() => {
+    void loadDeckMeta(deckId).then((d) => d && setDeck(d));
+    void getDeckMeta(deckId).then((m) => setHasOverride(Boolean(m)));
+  }, [deckId]);
+
   const reload = useCallback(() => {
     if (!valid) return Promise.resolve();
     void deckStats(deckId as DeckId).then(setStats);
+    reloadMeta();
     return loadDeck(deckId as DeckId)
       .then((c) => setContents(c))
       .catch((e) => setError(String(e)));
-  }, [deckId, valid]);
+  }, [deckId, valid, reloadMeta]);
 
   useEffect(() => {
     if (!valid) return;
     setContents(null);
     setError(null);
     setStats(null);
+    setEditingMeta(false);
     void reload();
     void isPersisted().then(setPersisted);
   }, [valid, reload]);
+
+  // Display through the resolver, falling back to chapter defaults pre-load.
+  const title = deck?.title ?? chapter?.title ?? '';
+  const description = deck?.description ?? chapter?.blurb ?? '';
+  const notesPath = deck?.notesPath ?? chapter?.notesPath;
+
+  const openMetaEditor = () => {
+    setMetaForm({ title, description });
+    setEditingMeta(true);
+  };
+  const saveMeta = async () => {
+    await saveDeckMeta(deckId, metaForm, deck?.custom ?? false);
+    setEditingMeta(false);
+    reloadMeta();
+  };
+  const resetMeta = async () => {
+    await deleteDeckMeta(deckId);
+    setEditingMeta(false);
+    reloadMeta();
+  };
 
   if (!valid || !chapter) {
     return (
@@ -143,21 +175,67 @@ export function DeckView({ deckId }: { deckId: string }) {
       </button>
 
       <div className="deck-header">
-        <div className="deck-header-top">
-          <h1>{chapter.title}</h1>
-          <button className="btn btn-primary" onClick={() => openNew('flashcard')}>
-            Write a card
-          </button>
-        </div>
-        <p className="muted">{chapter.blurb}</p>
-        <a
-          className="notes-link"
-          href={chapter.notesPath}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Read the chapter notes ↗
-        </a>
+        {editingMeta ? (
+          <div className="deck-meta-edit">
+            <label className="field">
+              <span className="field-label">Title</span>
+              <input
+                type="text"
+                value={metaForm.title}
+                autoFocus
+                onChange={(e) => setMetaForm({ ...metaForm, title: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Description</span>
+              <textarea
+                rows={2}
+                value={metaForm.description}
+                onChange={(e) =>
+                  setMetaForm({ ...metaForm, description: e.target.value })
+                }
+              />
+            </label>
+            <div className="deck-meta-actions">
+              <button className="btn btn-ghost" onClick={() => setEditingMeta(false)}>
+                Cancel
+              </button>
+              {!deck?.custom && hasOverride && (
+                <button className="btn btn-ghost" onClick={() => void resetMeta()}>
+                  Reset to default
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={() => void saveMeta()}>
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="deck-header-top">
+              <h1>{title}</h1>
+              <div className="deck-header-actions">
+                <button className="btn btn-ghost small" onClick={openMetaEditor}>
+                  Edit
+                </button>
+                <button className="btn btn-primary" onClick={() => openNew('flashcard')}>
+                  Write a card
+                </button>
+              </div>
+            </div>
+            {description && <p className="muted">{description}</p>}
+            {notesPath && (
+              <a
+                className="notes-link"
+                href={notesPath}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Read the chapter notes ↗
+              </a>
+            )}
+          </>
+        )}
       </div>
 
       {stats && stats.total > 0 && (

@@ -1,10 +1,12 @@
-import type { AppSettings, Card, ReviewRecord } from '../types';
+import type { AppSettings, Card, DeckMeta, ReviewRecord } from '../types';
 import { CHAPTER_IDS } from '../types';
 import {
   getAllCards,
+  getAllDeckMeta,
   getAllReviews,
   getSettings,
   putCards,
+  putDeckMetas,
   putReviews,
   putSettings,
 } from './db';
@@ -27,14 +29,17 @@ export interface BackupFile {
   reviews: ReviewRecord[];
   /** User settings (e.g. maturity threshold). */
   settings?: AppSettings;
+  /** Deck renames and custom set definitions. */
+  decks?: DeckMeta[];
 }
 
 /** Gather everything that is the user's own: their cards and their progress. */
 export async function buildBackup(): Promise<BackupFile> {
-  const [cards, reviews, settings] = await Promise.all([
+  const [cards, reviews, settings, decks] = await Promise.all([
     getAllCards(),
     getAllReviews(),
     getSettings(),
+    getAllDeckMeta(),
   ]);
   return {
     format: FORMAT,
@@ -43,6 +48,7 @@ export async function buildBackup(): Promise<BackupFile> {
     cards: cards.filter((c) => c.source === 'user'),
     reviews,
     settings,
+    decks,
   };
 }
 
@@ -84,6 +90,12 @@ function isCard(value: unknown): value is Card {
   return false;
 }
 
+function isDeckMeta(value: unknown): value is DeckMeta {
+  if (!value || typeof value !== 'object') return false;
+  const m = value as Record<string, unknown>;
+  return typeof m.id === 'string' && typeof m.custom === 'boolean';
+}
+
 function isReview(value: unknown): value is ReviewRecord {
   if (!value || typeof value !== 'object') return false;
   const r = value as Record<string, unknown>;
@@ -106,6 +118,7 @@ export function parseBackup(data: unknown): BackupFile {
   }
   const cards = Array.isArray(d.cards) ? d.cards.filter(isCard) : [];
   const reviews = Array.isArray(d.reviews) ? d.reviews.filter(isReview) : [];
+  const decks = Array.isArray(d.decks) ? d.decks.filter(isDeckMeta) : [];
   const s = d.settings as Record<string, unknown> | undefined;
   const settings =
     s && typeof s.matureThreshold === 'number'
@@ -118,6 +131,7 @@ export function parseBackup(data: unknown): BackupFile {
     cards,
     reviews,
     settings,
+    decks,
   };
 }
 
@@ -171,8 +185,22 @@ export async function importBackup(backup: BackupFile): Promise<ImportResult> {
     }
   }
 
+  // Deck renames / custom sets: newest wins, so importing restores a set's
+  // definition (giving its cards a home) without clobbering newer local edits.
+  const decksToWrite: DeckMeta[] = [];
+  if (backup.decks?.length) {
+    const existingDecks = new Map((await getAllDeckMeta()).map((m) => [m.id, m]));
+    for (const incoming of backup.decks) {
+      const existing = existingDecks.get(incoming.id);
+      if (!existing || existing.updatedAt < incoming.updatedAt) {
+        decksToWrite.push(incoming);
+      }
+    }
+  }
+
   if (cardsToWrite.length) await putCards(cardsToWrite);
   if (reviewsToWrite.length) await putReviews(reviewsToWrite);
+  if (decksToWrite.length) await putDeckMetas(decksToWrite);
   if (backup.settings) await putSettings(backup.settings);
   return result;
 }

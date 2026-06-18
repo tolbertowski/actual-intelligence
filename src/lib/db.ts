@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { AppSettings, Card, DeckId, ReviewRecord } from '../types';
+import type { AppSettings, Card, DeckId, DeckMeta, ReviewRecord } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 
 // A thin wrapper over IndexedDB (via idb) for the user's authored cards.
@@ -12,10 +12,11 @@ import { DEFAULT_SETTINGS } from '../types';
 // are loaded separately (see lib/decks.ts).
 
 const DB_NAME = 'actual-intelligence';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const CARD_STORE = 'cards';
 const REVIEW_STORE = 'reviews';
 const SETTINGS_STORE = 'settings';
+const DECK_STORE = 'decks';
 
 /** Single settings record lives under this key. */
 const SETTINGS_KEY = 'app';
@@ -44,6 +45,10 @@ interface AIDBSchema extends DBSchema {
     key: string;
     value: SettingsRecord;
   };
+  decks: {
+    key: string;
+    value: DeckMeta;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<AIDBSchema>> | null = null;
@@ -71,6 +76,9 @@ function getDB(): Promise<IDBPDatabase<AIDBSchema>> {
         }
         if (oldVersion < 3) {
           db.createObjectStore(SETTINGS_STORE, { keyPath: 'id' });
+        }
+        if (oldVersion < 4) {
+          db.createObjectStore(DECK_STORE, { keyPath: 'id' });
         }
       },
     });
@@ -189,6 +197,55 @@ export async function putSettings(patch: Partial<AppSettings>): Promise<AppSetti
   const next = { ...(await getSettings()), ...patch };
   await db.put(SETTINGS_STORE, { id: SETTINGS_KEY, ...next });
   return next;
+}
+
+// ---- Deck metadata (overrides + custom sets) -----------------------------
+
+export async function getAllDeckMeta(): Promise<DeckMeta[]> {
+  const db = await getDB();
+  return db.getAll(DECK_STORE);
+}
+
+export async function getDeckMeta(id: string): Promise<DeckMeta | undefined> {
+  const db = await getDB();
+  return db.get(DECK_STORE, id);
+}
+
+export async function putDeckMeta(meta: DeckMeta): Promise<DeckMeta> {
+  const db = await getDB();
+  await db.put(DECK_STORE, meta);
+  return meta;
+}
+
+export async function deleteDeckMeta(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete(DECK_STORE, id);
+}
+
+/** Import helper: write many deck-meta records in one transaction. */
+export async function putDeckMetas(metas: DeckMeta[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(DECK_STORE, 'readwrite');
+  await Promise.all(metas.map((m) => tx.store.put(m)));
+  await tx.done;
+}
+
+/** Delete a custom set and all of its cards + review records. */
+export async function deleteDeckCascade(deckId: string): Promise<void> {
+  const db = await getDB();
+  const cardIds = (
+    await db.getAllFromIndex(CARD_STORE, 'by-deck', deckId as DeckId)
+  ).map((c) => c.id);
+  const reviewIds = (
+    await db.getAllFromIndex(REVIEW_STORE, 'by-deck', deckId as DeckId)
+  ).map((r) => r.cardId);
+  const tx = db.transaction([CARD_STORE, REVIEW_STORE, DECK_STORE], 'readwrite');
+  await Promise.all([
+    ...cardIds.map((id) => tx.objectStore(CARD_STORE).delete(id)),
+    ...reviewIds.map((id) => tx.objectStore(REVIEW_STORE).delete(id)),
+    tx.objectStore(DECK_STORE).delete(deckId),
+  ]);
+  await tx.done;
 }
 
 /** Count of user cards per deck, for the deck list. */

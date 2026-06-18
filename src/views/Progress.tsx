@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
 import { computeStats, type CollectionStats } from '../lib/stats';
-import { CHAPTERS } from '../data/chapters';
+import { listDecks, type ResolvedDeck } from '../lib/decksMeta';
 import { getSettings, putSettings } from '../lib/db';
 import { DEFAULT_SETTINGS } from '../types';
 import { navigate } from '../hooks/useHashRoute';
 import { MaturityBar, StatGrid, DueForecast } from '../components/Stats';
 import { BackupPanel } from '../components/BackupPanel';
-import type { ChapterId } from '../types';
 
 export function Progress() {
   const [stats, setStats] = useState<CollectionStats | null>(null);
+  const [decks, setDecks] = useState<ResolvedDeck[]>([]);
   const [matureThreshold, setMatureThreshold] = useState(DEFAULT_SETTINGS.matureThreshold);
 
   useEffect(() => {
     let cancelled = false;
     void getSettings().then((s) => !cancelled && setMatureThreshold(s.matureThreshold));
+    void listDecks().then((d) => !cancelled && setDecks(d));
     computeStats().then((s) => !cancelled && setStats(s));
     return () => {
       cancelled = true;
@@ -40,8 +41,8 @@ export function Progress() {
 
   const noCards = stats.overall.total === 0;
 
-  // Decks with at least one flashcard, in teaching order.
-  const decksWithCards = CHAPTERS.filter((c) => (stats.byDeck[c.id]?.total ?? 0) > 0);
+  // Decks with at least one flashcard, in display order.
+  const decksWithCards = decks.filter((d) => (stats.byDeck[d.id]?.total ?? 0) > 0);
 
   return (
     <div className="page">
@@ -99,18 +100,16 @@ export function Progress() {
             </div>
             <hr className="hairline" />
             <ul className="progress-deck-list" role="list">
-              {decksWithCards.map((chapter) => {
-                const s = stats.byDeck[chapter.id];
+              {decksWithCards.map((deck) => {
+                const s = stats.byDeck[deck.id];
                 return (
-                  <li key={chapter.id}>
+                  <li key={deck.id}>
                     <button
                       className="progress-deck-row"
-                      onClick={() =>
-                        navigate({ name: 'deck', deckId: chapter.id as ChapterId })
-                      }
+                      onClick={() => navigate({ name: 'deck', deckId: deck.id })}
                     >
                       <span className="progress-deck-main">
-                        <span className="progress-deck-title">{chapter.title}</span>
+                        <span className="progress-deck-title">{deck.title}</span>
                         <MaturityBar stats={s} showLegend={false} />
                       </span>
                       <span className="progress-deck-meta muted">
