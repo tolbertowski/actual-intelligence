@@ -104,6 +104,14 @@ export interface ReviewRecord extends ReviewState {
 /** A recall grade, 0–5 in SM-2. The UI maps keys 1–4 onto the useful range. */
 export type Grade = 0 | 1 | 2 | 3 | 4 | 5;
 
+/** User settings, persisted as a single record in IndexedDB. */
+export interface AppSettings {
+  /** Consecutive correct recalls before a card counts as "mature". */
+  matureThreshold: number;
+}
+
+export const DEFAULT_SETTINGS: AppSettings = { matureThreshold: 3 };
+
 /** Static metadata describing a chapter / deck. Not persisted — derived. */
 export interface ChapterMeta {
   id: ChapterId;

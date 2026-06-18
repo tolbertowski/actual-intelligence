@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Card, DeckId, ReviewRecord } from '../types';
+import type { AppSettings, Card, DeckId, ReviewRecord } from '../types';
+import { DEFAULT_SETTINGS } from '../types';
 
 // A thin wrapper over IndexedDB (via idb) for the user's authored cards.
 //
@@ -11,9 +12,14 @@ import type { Card, DeckId, ReviewRecord } from '../types';
 // are loaded separately (see lib/decks.ts).
 
 const DB_NAME = 'actual-intelligence';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const CARD_STORE = 'cards';
 const REVIEW_STORE = 'reviews';
+const SETTINGS_STORE = 'settings';
+
+/** Single settings record lives under this key. */
+const SETTINGS_KEY = 'app';
+type SettingsRecord = AppSettings & { id: string };
 
 interface AIDBSchema extends DBSchema {
   cards: {
@@ -33,6 +39,10 @@ interface AIDBSchema extends DBSchema {
       /** Due-date queries across all decks. */
       'by-due': number;
     };
+  };
+  settings: {
+    key: string;
+    value: SettingsRecord;
   };
 }
 
@@ -58,6 +68,9 @@ function getDB(): Promise<IDBPDatabase<AIDBSchema>> {
           });
           reviews.createIndex('by-deck', 'deck');
           reviews.createIndex('by-due', 'due');
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore(SETTINGS_STORE, { keyPath: 'id' });
         }
       },
     });
@@ -159,6 +172,23 @@ export async function putReviews(records: ReviewRecord[]): Promise<void> {
   const tx = db.transaction(REVIEW_STORE, 'readwrite');
   await Promise.all(records.map((r) => tx.store.put(r)));
   await tx.done;
+}
+
+// ---- Settings ------------------------------------------------------------
+
+/** Read settings, falling back to defaults for any unset field. */
+export async function getSettings(): Promise<AppSettings> {
+  const db = await getDB();
+  const rec = await db.get(SETTINGS_STORE, SETTINGS_KEY);
+  return { ...DEFAULT_SETTINGS, ...(rec ?? {}) };
+}
+
+/** Patch settings; returns the merged result. */
+export async function putSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  const db = await getDB();
+  const next = { ...(await getSettings()), ...patch };
+  await db.put(SETTINGS_STORE, { id: SETTINGS_KEY, ...next });
+  return next;
 }
 
 /** Count of user cards per deck, for the deck list. */

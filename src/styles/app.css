@@ -721,6 +721,30 @@
   align-items: center;
   gap: 6px;
 }
+.maturity-note {
+  margin: 4px 0 0;
+}
+.stat-hint {
+  color: var(--ink-faint);
+  cursor: help;
+}
+
+.threshold-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.threshold-control .btn {
+  min-width: 30px;
+  justify-content: center;
+  padding: 4px 8px;
+}
+.threshold-value {
+  font-weight: 600;
+  min-width: 1.5ch;
+  text-align: center;
+}
 .dot {
   width: 9px;
   height: 9px;

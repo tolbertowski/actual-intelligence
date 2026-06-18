@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { computeStats, type CollectionStats } from '../lib/stats';
 import { CHAPTERS } from '../data/chapters';
+import { getSettings, putSettings } from '../lib/db';
+import { DEFAULT_SETTINGS } from '../types';
 import { navigate } from '../hooks/useHashRoute';
 import { MaturityBar, StatGrid, DueForecast } from '../components/Stats';
 import { BackupPanel } from '../components/BackupPanel';
@@ -8,14 +10,24 @@ import type { ChapterId } from '../types';
 
 export function Progress() {
   const [stats, setStats] = useState<CollectionStats | null>(null);
+  const [matureThreshold, setMatureThreshold] = useState(DEFAULT_SETTINGS.matureThreshold);
 
   useEffect(() => {
     let cancelled = false;
+    void getSettings().then((s) => !cancelled && setMatureThreshold(s.matureThreshold));
     computeStats().then((s) => !cancelled && setStats(s));
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Persist a new maturity threshold and re-bucket the stats.
+  const changeThreshold = async (next: number) => {
+    const clamped = Math.max(1, Math.min(10, Math.round(next)));
+    setMatureThreshold(clamped);
+    await putSettings({ matureThreshold: clamped });
+    setStats(await computeStats());
+  };
 
   if (!stats) {
     return (
@@ -55,7 +67,28 @@ export function Progress() {
         <>
           <section className="progress-overall">
             <StatGrid stats={stats.overall} />
-            <MaturityBar stats={stats.overall} />
+            <MaturityBar stats={stats.overall} explain matureThreshold={matureThreshold} />
+            <div className="threshold-control">
+              <span className="muted small">Mature after</span>
+              <button
+                className="btn btn-ghost small"
+                onClick={() => void changeThreshold(matureThreshold - 1)}
+                disabled={matureThreshold <= 1}
+                aria-label="Fewer reviews to mature"
+              >
+                −
+              </button>
+              <span className="threshold-value">{matureThreshold}</span>
+              <button
+                className="btn btn-ghost small"
+                onClick={() => void changeThreshold(matureThreshold + 1)}
+                disabled={matureThreshold >= 10}
+                aria-label="More reviews to mature"
+              >
+                +
+              </button>
+              <span className="muted small">correct reviews in a row</span>
+            </div>
             <DueForecast forecast={stats.forecast} />
           </section>
 

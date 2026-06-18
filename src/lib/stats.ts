@@ -1,5 +1,5 @@
 import type { Card, DeckId, ReviewRecord } from '../types';
-import { getAllCards, getAllReviews } from './db';
+import { getAllCards, getAllReviews, getSettings } from './db';
 import { loadShippedDeck } from './decks';
 import { isReviewable, endOfToday } from './review';
 import { CHAPTERS } from '../data/chapters';
@@ -7,9 +7,10 @@ import { CHAPTERS } from '../data/chapters';
 // Collection-snapshot statistics, derived entirely from the current SM-2 state
 // in the `reviews` store — no review-event log. Only flashcards are counted
 // (MCQs belong to quiz mode), matching how review scheduling works.
-
-/** A card is "mature" once its interval reaches this many days (Anki's bar). */
-export const MATURE_DAYS = 21;
+//
+// Maturity is repetition-based: a card is "mature" once it has been recalled
+// correctly `matureThreshold` times in a row (a user setting). `repetitions`
+// resets to 0 on a lapse, so a lapsed card drops back to "in progress".
 
 /** Days shown in the due forecast, starting with today (index 0). */
 export const FORECAST_DAYS = 7;
@@ -55,7 +56,12 @@ function dayStartOf(ts: number): number {
  * join used by review.studyCountsByDeck.
  */
 export async function computeStats(now: number = Date.now()): Promise<CollectionStats> {
-  const [userCards, reviews] = await Promise.all([getAllCards(), getAllReviews()]);
+  const [userCards, reviews, settings] = await Promise.all([
+    getAllCards(),
+    getAllReviews(),
+    getSettings(),
+  ]);
+  const matureThreshold = settings.matureThreshold;
   const shippedByDeck = await Promise.all(
     CHAPTERS.map(async (c) => await loadShippedDeck(c.id)),
   );
@@ -87,8 +93,8 @@ export async function computeStats(now: number = Date.now()): Promise<Collection
       return;
     }
 
-    // Reviewed card: maturity, ease, due today, and forecast placement.
-    if (r.interval >= MATURE_DAYS) {
+    // Reviewed card: maturity (by consecutive correct recalls), ease, due, forecast.
+    if (r.repetitions >= matureThreshold) {
       bucket.mature += 1;
       overall.mature += 1;
     } else {

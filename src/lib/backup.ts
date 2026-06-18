@@ -1,6 +1,13 @@
-import type { Card, ReviewRecord } from '../types';
+import type { AppSettings, Card, ReviewRecord } from '../types';
 import { CHAPTER_IDS } from '../types';
-import { getAllCards, getAllReviews, putCards, putReviews } from './db';
+import {
+  getAllCards,
+  getAllReviews,
+  getSettings,
+  putCards,
+  putReviews,
+  putSettings,
+} from './db';
 
 // Export / import — the durability story. IndexedDB is an evictable cache; a
 // JSON file the user holds is the real backup. The format is deliberately plain
@@ -18,17 +25,24 @@ export interface BackupFile {
   cards: Card[];
   /** Review/scheduling records (covers shipped and user cards). */
   reviews: ReviewRecord[];
+  /** User settings (e.g. maturity threshold). */
+  settings?: AppSettings;
 }
 
 /** Gather everything that is the user's own: their cards and their progress. */
 export async function buildBackup(): Promise<BackupFile> {
-  const [cards, reviews] = await Promise.all([getAllCards(), getAllReviews()]);
+  const [cards, reviews, settings] = await Promise.all([
+    getAllCards(),
+    getAllReviews(),
+    getSettings(),
+  ]);
   return {
     format: FORMAT,
     version: FORMAT_VERSION,
     exportedAt: new Date().toISOString(),
     cards: cards.filter((c) => c.source === 'user'),
     reviews,
+    settings,
   };
 }
 
@@ -92,12 +106,18 @@ export function parseBackup(data: unknown): BackupFile {
   }
   const cards = Array.isArray(d.cards) ? d.cards.filter(isCard) : [];
   const reviews = Array.isArray(d.reviews) ? d.reviews.filter(isReview) : [];
+  const s = d.settings as Record<string, unknown> | undefined;
+  const settings =
+    s && typeof s.matureThreshold === 'number'
+      ? { matureThreshold: s.matureThreshold }
+      : undefined;
   return {
     format: FORMAT,
     version: typeof d.version === 'number' ? d.version : FORMAT_VERSION,
     exportedAt: typeof d.exportedAt === 'string' ? d.exportedAt : '',
     cards,
     reviews,
+    settings,
   };
 }
 
@@ -153,6 +173,7 @@ export async function importBackup(backup: BackupFile): Promise<ImportResult> {
 
   if (cardsToWrite.length) await putCards(cardsToWrite);
   if (reviewsToWrite.length) await putReviews(reviewsToWrite);
+  if (backup.settings) await putSettings(backup.settings);
   return result;
 }
 

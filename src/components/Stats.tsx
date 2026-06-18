@@ -5,10 +5,26 @@ import { FORECAST_DAYS } from '../lib/stats';
 // Colours come from the global tokens; everything degrades gracefully when a
 // scope has no cards.
 
-/** A stacked bar of new / young / mature proportions. */
-export function MaturityBar({ stats, showLegend = true }: { stats: DeckStats; showLegend?: boolean }) {
+/** A stacked bar of new / in-progress / mature proportions. */
+export function MaturityBar({
+  stats,
+  showLegend = true,
+  explain = false,
+  matureThreshold,
+}: {
+  stats: DeckStats;
+  showLegend?: boolean;
+  /** Show a one-line description of what the buckets mean. */
+  explain?: boolean;
+  /** The reps threshold, used in the explanation copy. */
+  matureThreshold?: number;
+}) {
   const { new: fresh, young, mature, total } = stats;
   const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0);
+  const matureCopy =
+    matureThreshold != null
+      ? `recalled ${matureThreshold} times running`
+      : 'recalled several times running';
 
   return (
     <div className="maturity">
@@ -29,6 +45,11 @@ export function MaturityBar({ stats, showLegend = true }: { stats: DeckStats; sh
           <li><span className="dot dot-new" />New {fresh}</li>
         </ul>
       )}
+      {explain && (
+        <p className="maturity-note muted small">
+          New: not yet reviewed · In progress: still learning · Mature: {matureCopy}.
+        </p>
+      )}
     </div>
   );
 }
@@ -37,20 +58,23 @@ function formatEase(ease: number | null): string {
   return ease == null ? '—' : ease.toFixed(2);
 }
 
+const EASE_HINT =
+  'How easily these cards stick. Starts at 2.5; lower (toward 1.3) means a deck you find hard — it resurfaces more often.';
+
 /** Labelled number tiles. */
 export function StatGrid({ stats }: { stats: DeckStats }) {
   const reviewed = stats.total - stats.new;
-  const tiles: { label: string; value: string | number }[] = [
+  const tiles: { label: string; value: string | number; hint?: string }[] = [
     { label: 'Flashcards', value: stats.total },
     { label: 'Reviewed', value: reviewed },
     { label: 'Due today', value: stats.dueToday },
-    { label: 'Avg. ease', value: formatEase(stats.avgEase) },
+    { label: 'Avg. ease', value: formatEase(stats.avgEase), hint: EASE_HINT },
   ];
   return (
     <dl className="stat-grid">
       {tiles.map((t) => (
-        <div className="stat-tile" key={t.label}>
-          <dt>{t.label}</dt>
+        <div className="stat-tile" key={t.label} title={t.hint}>
+          <dt>{t.label}{t.hint && <span className="stat-hint" aria-hidden="true"> ⓘ</span>}</dt>
           <dd>{t.value}</dd>
         </div>
       ))}
