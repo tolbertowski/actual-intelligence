@@ -81,6 +81,24 @@ function getDB(): Promise<IDBPDatabase<AIDBSchema>> {
           db.createObjectStore(DECK_STORE, { keyPath: 'id' });
         }
       },
+      // Another tab is upgrading to a newer version: close our connection so
+      // it can proceed instead of deadlocking it (the classic "stuck loading"
+      // after a schema bump). The next call reopens at the new version.
+      blocking() {
+        void dbPromise?.then((db) => db.close());
+        dbPromise = null;
+      },
+      // Our open is held up by an older connection elsewhere — surface it
+      // rather than spinning silently forever.
+      blocked() {
+        console.warn(
+          'Database upgrade is blocked by another open tab of this app. ' +
+            'Close the other tabs and reload.',
+        );
+      },
+      terminated() {
+        dbPromise = null;
+      },
     });
   }
   return dbPromise;
