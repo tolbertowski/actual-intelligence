@@ -10,7 +10,10 @@ import { useEffect, useState } from 'react';
 //   #/review · #/practice · #/quiz            across every deck
 //   #/deck/:deckId/review · …/practice · …/quiz   scoped to one deck
 
-type Session = { name: 'review' | 'practice' | 'quiz'; deckId?: string };
+type Session = {
+  name: 'review' | 'practice' | 'quiz' | 'flashquiz';
+  deckId?: string;
+};
 
 export type Route =
   | { name: 'decks' }
@@ -18,7 +21,7 @@ export type Route =
   | { name: 'deck'; deckId: string }
   | Session;
 
-const SESSIONS = ['review', 'practice', 'quiz'] as const;
+const SESSIONS = ['review', 'practice', 'quiz', 'flashquiz'] as const;
 type SessionName = (typeof SESSIONS)[number];
 
 function isSession(s: string): s is SessionName {
@@ -43,7 +46,12 @@ export function navigate(route: Route): void {
   let hash = '#/';
   if (route.name === 'progress') hash = '#/progress';
   else if (route.name === 'deck') hash = `#/deck/${encodeURIComponent(route.deckId)}`;
-  else if (route.name === 'review' || route.name === 'practice' || route.name === 'quiz') {
+  else if (
+    route.name === 'review' ||
+    route.name === 'practice' ||
+    route.name === 'quiz' ||
+    route.name === 'flashquiz'
+  ) {
     hash = route.deckId
       ? `#/deck/${encodeURIComponent(route.deckId)}/${route.name}`
       : `#/${route.name}`;

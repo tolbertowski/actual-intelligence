@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { isChapterId } from '../data/chapters';
 import { loadDeckMeta } from '../lib/decksMeta';
 import {
+  loadAllFlashcardQuiz,
   loadAllQuizQueue,
+  loadFlashcardQuiz,
   loadQuizQueue,
   quizItemFromCard,
   type QuizItem,
@@ -14,9 +16,17 @@ import type { DeckId, MCQCard } from '../types';
 
 type Phase = 'loading' | 'quizzing' | 'done' | 'invalid';
 
-export function QuizSession({ deckId }: { deckId?: string }) {
+export function QuizSession({
+  deckId,
+  from = 'mcq',
+}: {
+  deckId?: string;
+  /** 'mcq' quizzes real MCQs; 'flashcards' templates flashcards into MCQs. */
+  from?: 'mcq' | 'flashcards';
+}) {
   const global = deckId === undefined;
   const valid = global || isChapterId(deckId);
+  const fromFlashcards = from === 'flashcards';
 
   const [queue, setQueue] = useState<QuizItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -32,8 +42,12 @@ export function QuizSession({ deckId }: { deckId?: string }) {
     else setScopeTitle('All decks');
   }, [deckId]);
 
-  const loadQueue = () =>
-    deckId ? loadQuizQueue(deckId as DeckId) : loadAllQuizQueue();
+  const loadQueue = () => {
+    if (fromFlashcards) {
+      return deckId ? loadFlashcardQuiz(deckId as DeckId) : loadAllFlashcardQuiz();
+    }
+    return deckId ? loadQuizQueue(deckId as DeckId) : loadAllQuizQueue();
+  };
 
   const start = useCallback(() => {
     if (!valid) {
@@ -216,7 +230,7 @@ export function QuizSession({ deckId }: { deckId?: string }) {
           ← {backLabel}
         </button>
         <span className="review-top-right muted small">
-          {current.card.source === 'user' && (
+          {current.card.source === 'user' && !current.generated && (
             <button
               className="btn btn-ghost small"
               onClick={() => setEditing(current.card)}
@@ -294,9 +308,11 @@ export function QuizSession({ deckId }: { deckId?: string }) {
           <div className={`quiz-verdict ${isFullyCorrect(selected, current) ? 'good' : 'bad'}`}>
             {isFullyCorrect(selected, current) ? 'Correct' : 'Not quite'}
           </div>
-          <div className="quiz-explanation">
-            <RichText>{current.card.explanation}</RichText>
-          </div>
+          {current.card.explanation && (
+            <div className="quiz-explanation">
+              <RichText>{current.card.explanation}</RichText>
+            </div>
+          )}
           <div className="quiz-next-row">
             <button className="btn btn-primary" onClick={next}>
               {index + 1 >= total ? 'See results' : 'Next question'}

@@ -25,6 +25,9 @@ export function App() {
             <ReviewSession deckId={route.deckId} mode="practice" />
           )}
           {route.name === 'quiz' && <QuizSession deckId={route.deckId} />}
+          {route.name === 'flashquiz' && (
+            <QuizSession deckId={route.deckId} from="flashcards" />
+          )}
           {/* deckId may be undefined for the global "all decks" sessions */}
         </ErrorBoundary>
       </main>

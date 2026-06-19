@@ -327,7 +327,18 @@ export function DeckView({ deckId }: { deckId: string }) {
           <section className="deck-section">
             <div className="deck-section-head">
               <h2>Flashcards</h2>
-              <span className="muted">{flashcards.length}</span>
+              <div className="deck-section-head-actions">
+                <span className="muted">{flashcards.length}</span>
+                {flashcards.length >= 2 && (
+                  <button
+                    className="btn small"
+                    onClick={() => navigate({ name: 'flashquiz', deckId })}
+                    title="Quiz yourself on these flashcards as multiple choice"
+                  >
+                    Quiz these
+                  </button>
+                )}
+              </div>
             </div>
             <hr className="hairline" />
             {flashcards.length === 0 ? (
