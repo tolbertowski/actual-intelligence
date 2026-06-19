@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isChapterId } from '../data/chapters';
 import { loadDeckMeta } from '../lib/decksMeta';
-import { loadAllQuizQueue, loadQuizQueue, type QuizItem } from '../lib/quiz';
+import {
+  loadAllQuizQueue,
+  loadQuizQueue,
+  quizItemFromCard,
+  type QuizItem,
+} from '../lib/quiz';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
-import type { DeckId } from '../types';
+import { CardEditor } from '../components/CardEditor';
+import type { DeckId, MCQCard } from '../types';
 
 type Phase = 'loading' | 'quizzing' | 'done' | 'invalid';
 
@@ -19,6 +25,7 @@ export function QuizSession({ deckId }: { deckId?: string }) {
   const [score, setScore] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
   const [scopeTitle, setScopeTitle] = useState(global ? 'All decks' : '');
+  const [editing, setEditing] = useState<MCQCard | null>(null);
 
   useEffect(() => {
     if (deckId) void loadDeckMeta(deckId).then((d) => d && setScopeTitle(d.title));
@@ -114,6 +121,7 @@ export function QuizSession({ deckId }: { deckId?: string }) {
   useEffect(() => {
     if (phase !== 'quizzing') return;
     const onKey = (e: KeyboardEvent) => {
+      if (editing) return; // the editor handles its own keys
       if (answered) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -132,7 +140,7 @@ export function QuizSession({ deckId }: { deckId?: string }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, answered, current, choose, next, finalize, selected]);
+  }, [phase, answered, current, choose, next, finalize, selected, editing]);
 
   if (phase === 'invalid') {
     return (
@@ -207,7 +215,15 @@ export function QuizSession({ deckId }: { deckId?: string }) {
         <button className="btn-ghost back-link" onClick={goBack}>
           ← {backLabel}
         </button>
-        <span className="muted small">
+        <span className="review-top-right muted small">
+          {current.card.source === 'user' && (
+            <button
+              className="btn btn-ghost small"
+              onClick={() => setEditing(current.card)}
+            >
+              Edit
+            </button>
+          )}
           {index + 1} of {total} · {score} right
         </span>
       </div>
@@ -290,6 +306,26 @@ export function QuizSession({ deckId }: { deckId?: string }) {
             </span>
           </div>
         </div>
+      )}
+
+      {editing && (
+        <CardEditor
+          deck={editing.deck}
+          deckTitle={global ? undefined : scopeTitle}
+          card={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            // Rebuild this question from the edit and let the user re-answer it.
+            setQueue((q) =>
+              q.map((it, i) =>
+                i === index ? quizItemFromCard(saved as MCQCard) : it,
+              ),
+            );
+            setSelected([]);
+            setAnswered(false);
+            setEditing(null);
+          }}
+        />
       )}
     </div>
   );

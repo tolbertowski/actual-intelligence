@@ -12,7 +12,8 @@ import {
 import { GRADE_OPTIONS, formatInterval, isLapse, previewInterval } from '../lib/sm2';
 import { navigate } from '../hooks/useHashRoute';
 import { RichText } from '../components/RichText';
-import type { DeckId, Grade } from '../types';
+import { CardEditor } from '../components/CardEditor';
+import type { Card, DeckId, Flashcard, Grade } from '../types';
 
 type Phase = 'loading' | 'reviewing' | 'done' | 'invalid';
 
@@ -37,6 +38,7 @@ export function ReviewSession({
   const [phase, setPhase] = useState<Phase>('loading');
   const [reviewed, setReviewed] = useState(0);
   const [scopeTitle, setScopeTitle] = useState(global ? 'All decks' : '');
+  const [editing, setEditing] = useState<Card | null>(null);
 
   useEffect(() => {
     if (deckId) void loadDeckMeta(deckId).then((d) => d && setScopeTitle(d.title));
@@ -88,10 +90,12 @@ export function ReviewSession({
     [current, index, queue.length, practice],
   );
 
-  // Keyboard: space/enter flips; 1–4 grade once flipped.
+  // Keyboard: space/enter flips; 1–4 grade once flipped. Suspended while the
+  // in-session editor is open (it has its own shortcuts).
   useEffect(() => {
     if (phase !== 'reviewing') return;
     const onKey = (e: KeyboardEvent) => {
+      if (editing) return;
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         if (!flipped) setFlipped(true);
@@ -105,7 +109,7 @@ export function ReviewSession({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, flipped, grade]);
+  }, [phase, flipped, grade, editing]);
 
   if (phase === 'invalid') {
     return (
@@ -182,7 +186,15 @@ export function ReviewSession({
         <button className="btn-ghost back-link" onClick={goBack}>
           ← {backLabel}
         </button>
-        <span className="muted small">
+        <span className="review-top-right muted small">
+          {current.card.source === 'user' && (
+            <button
+              className="btn btn-ghost small"
+              onClick={() => setEditing(current.card)}
+            >
+              Edit
+            </button>
+          )}
           {practice && <span className="tag">practice</span>}{' '}
           {index + 1} of {total}
           {!practice && current?.isNew && <span className="tag new-tag">new</span>}
@@ -239,6 +251,23 @@ export function ReviewSession({
             </button>
           ))}
         </div>
+      )}
+
+      {editing && (
+        <CardEditor
+          deck={editing.deck}
+          deckTitle={global ? undefined : scopeTitle}
+          card={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            setQueue((q) =>
+              q.map((it, i) =>
+                i === index ? { ...it, card: saved as Flashcard } : it,
+              ),
+            );
+            setEditing(null);
+          }}
+        />
       )}
     </div>
   );

@@ -38,6 +38,11 @@ function toItem(card: MCQCard): QuizItem {
   return { card, options, multi: correct.size > 1 };
 }
 
+/** Rebuild a single quiz item from a (possibly just-edited) card. */
+export function quizItemFromCard(card: MCQCard): QuizItem {
+  return toItem(card);
+}
+
 const isQuizzable = (c: { kind: string; status: string }): boolean =>
   c.kind === 'mcq' && c.status !== 'suspended';
 

@@ -566,6 +566,11 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
+.review-top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .review-progress {
   height: 2px;
   background: var(--hairline);
