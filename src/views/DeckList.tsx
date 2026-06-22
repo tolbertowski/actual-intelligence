@@ -21,10 +21,14 @@ function useDeckSummaries() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const userCounts = await countCardsByDeck();
-      const study = await studyCountsByDeck();
+      const [userCounts, study, decks] = await Promise.all([
+        countCardsByDeck(),
+        studyCountsByDeck(),
+        listDecks(),
+      ]);
+      // Cover every deck — chapters and custom sets — not just chapters.
       const shippedEntries = await Promise.all(
-        CHAPTERS.map(async (c) => [c.id, await countShipped(c.id)] as const),
+        decks.map(async (d) => [d.id, await countShipped(d.id)] as const),
       );
       if (cancelled) return;
       const next: Record<string, DeckSummary> = {};
