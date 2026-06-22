@@ -29,7 +29,6 @@ export function ReviewSession({
   mode?: ReviewMode;
 }) {
   const global = deckId === undefined;
-  const valid = global || isChapterId(deckId);
   const practice = mode === 'practice';
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -46,27 +45,29 @@ export function ReviewSession({
   }, [deckId]);
 
   useEffect(() => {
-    if (!valid) {
-      setPhase('invalid');
-      return;
-    }
     let cancelled = false;
-    const load = practice
-      ? deckId
-        ? loadPracticeQueue(deckId as DeckId)
-        : loadAllPracticeQueue()
-      : deckId
-        ? loadReviewQueue(deckId as DeckId)
-        : loadAllReviewQueue();
-    load.then((q) => {
+    (async () => {
+      setPhase('loading');
+      // A deck exists if it's a chapter or a resolved custom set.
+      if (deckId && !isChapterId(deckId) && !(await loadDeckMeta(deckId))) {
+        if (!cancelled) setPhase('invalid');
+        return;
+      }
+      const q = await (practice
+        ? deckId
+          ? loadPracticeQueue(deckId as DeckId)
+          : loadAllPracticeQueue()
+        : deckId
+          ? loadReviewQueue(deckId as DeckId)
+          : loadAllReviewQueue());
       if (cancelled) return;
       setQueue(q);
       setPhase(q.length === 0 ? 'done' : 'reviewing');
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [deckId, valid, practice]);
+  }, [deckId, practice]);
 
   const current = queue[index];
 

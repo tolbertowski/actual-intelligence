@@ -25,7 +25,6 @@ export function QuizSession({
   from?: 'mcq' | 'flashcards';
 }) {
   const global = deckId === undefined;
-  const valid = global || isChapterId(deckId);
   const fromFlashcards = from === 'flashcards';
 
   const [queue, setQueue] = useState<QuizItem[]>([]);
@@ -50,38 +49,27 @@ export function QuizSession({
   };
 
   const start = useCallback(() => {
-    if (!valid) {
-      setPhase('invalid');
-      return;
-    }
     setPhase('loading');
-    loadQueue().then((q) => {
+    void (async () => {
+      // A deck exists if it's a chapter or a resolved custom set.
+      if (deckId && !isChapterId(deckId) && !(await loadDeckMeta(deckId))) {
+        setPhase('invalid');
+        return;
+      }
+      const q = await loadQueue();
       setQueue(q);
       setIndex(0);
       setSelected([]);
       setAnswered(false);
       setScore(0);
       setPhase(q.length === 0 ? 'done' : 'quizzing');
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deckId, valid]);
+  }, [deckId, fromFlashcards]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!valid) {
-      setPhase('invalid');
-      return;
-    }
-    loadQueue().then((q) => {
-      if (cancelled) return;
-      setQueue(q);
-      setPhase(q.length === 0 ? 'done' : 'quizzing');
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deckId, valid]);
+    start();
+  }, [start]);
 
   const current = queue[index];
 
